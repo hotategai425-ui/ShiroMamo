@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 329579f7e39f5fc438a07b272ed046b0, type: 3}
+  m_Name: Orc
+  m_EditorClassIdentifier: 
+  displayName: Monster
+  prefab: {fileID: -1665520488276472402, guid: e21834c34b1fb21488fb12ad011e78fe, type: 3}
+  maxHp: 50
+  moveSpeed: 2
+  attackDamage: 7
+  attackInterval: 4
+  attackRange: 2
+  aggroRange: 3
+  scale: 1
+  spawnWeight: 2
+  firstWave: 2
+  expReward: 30
+  itemDropChance: 0.5
+  dropTable: []
+  applyTint: 1
+  tintColor: {r: 1, g: 0.8307333, b: 0, a: 1}

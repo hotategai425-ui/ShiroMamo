@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 329579f7e39f5fc438a07b272ed046b0, type: 3}
+  m_Name: Witch
+  m_EditorClassIdentifier: 
+  displayName: Monster
+  prefab: {fileID: -792535417745749066, guid: aff09eb65e3ac4f4fad68e0f718ec35e, type: 3}
+  maxHp: 30
+  moveSpeed: 1
+  attackDamage: 10
+  attackInterval: 5
+  attackRange: 15
+  aggroRange: 15
+  scale: 1
+  spawnWeight: 1
+  firstWave: 2
+  expReward: 30
+  itemDropChance: 0.5
+  dropTable: []
+  applyTint: 1
+  tintColor: {r: 0.3189869, g: 0, b: 1, a: 1}
