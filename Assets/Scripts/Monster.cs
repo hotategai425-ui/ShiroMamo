@@ -1,12 +1,16 @@
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 
-// モンスター本体。Rigidbody で砦に向かって歩き、近づくと攻撃する。
-// プレイヤーが aggroRange 内に入るとプレイヤーを優先して狙う。
+// モンスター本体。動きと戦闘はホストだけが計算し、位置は NetworkTransform で全員に同期される。
+// 近くにいる(生きている)プレイヤーのうち一番近い人を優先して狙い、いなければ砦を狙う。
 [RequireComponent(typeof(Rigidbody))]
-public class Monster : MonoBehaviour
+public class Monster : NetworkBehaviour
 {
     public static readonly List<Monster> All = new List<Monster>();
+
+    // 色の同期。アルファ0 は「色を変えない」の意味
+    private NetworkVariable<Color> tint = new NetworkVariable<Color>(new Color(0f, 0f, 0f, 0f));
 
     private MonsterData data;
     private Rigidbody rb;
@@ -17,19 +21,19 @@ public class Monster : MonoBehaviour
     private float dropChance;
     private float attackTimer;
     private bool dead;
+    private Color pendingTint = new Color(0f, 0f, 0f, 0f);
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
         rb.constraints = RigidbodyConstraints.FreezeRotation;
-        rb.interpolation = RigidbodyInterpolation.Interpolate;
     }
 
     private void OnEnable() { All.Add(this); }
     private void OnDisable() { All.Remove(this); }
 
-    // スポーン直後に呼ぶ。ウェーブ補正を反映
-    public void Init(MonsterData d, WaveManager.WaveSetting wave)
+    // ホストが Spawn する「前」に呼ぶ。ウェーブ補正を反映
+    public void ServerInit(MonsterData d, WaveManager.WaveSetting wave)
     {
         data = d;
         hp = d.maxHp * wave.hpMultiplier;
@@ -39,28 +43,65 @@ public class Monster : MonoBehaviour
         dropChance = d.itemDropChance * wave.dropRateMultiplier;
 
         transform.localScale *= d.scale;
+        pendingTint = d.applyTint ? d.tintColor : new Color(0f, 0f, 0f, 0f);
+    }
 
-        if (d.applyTint)
+    public override void OnNetworkSpawn()
+    {
+        if (IsServer)
         {
-            var r = GetComponentInChildren<Renderer>();
-            if (r != null) r.material.color = d.tintColor;
+            tint.Value = pendingTint;
         }
+        else
+        {
+            // 参加者側では物理を動かさず、同期された位置に従うだけ
+            rb.isKinematic = true;
+        }
+
+        ApplyTint(tint.Value);
+        tint.OnValueChanged += OnTintChanged;
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        tint.OnValueChanged -= OnTintChanged;
+    }
+
+    private void OnTintChanged(Color previous, Color current)
+    {
+        ApplyTint(current);
+    }
+
+    private void ApplyTint(Color c)
+    {
+        if (c.a <= 0f) return;
+        var r = GetComponentInChildren<Renderer>();
+        if (r != null) r.material.color = c;
     }
 
     private void FixedUpdate()
     {
-        if (data == null || dead) return;
+        if (!IsServer || !IsSpawned || data == null || dead) return;
 
-        // 狙う相手を決める(プレイヤー優先 / なければ砦)
-        var player = PlayerStats.Instance;
-        bool targetPlayer = player != null && !player.IsDead &&
-                            Flat(player.transform.position - transform.position).magnitude <= data.aggroRange;
+        // 狙う相手を決める(近くの生きているプレイヤー優先 / いなければ砦)
+        PlayerStats targetPlayer = null;
+        float best = data.aggroRange;
+        foreach (var p in PlayerStats.All)
+        {
+            if (p == null || p.IsDead) continue;
+            float d = Flat(p.transform.position - transform.position).magnitude;
+            if (d <= best)
+            {
+                best = d;
+                targetPlayer = p;
+            }
+        }
 
         Vector3 targetPos;
         float targetRadius;
-        if (targetPlayer)
+        if (targetPlayer != null)
         {
-            targetPos = player.transform.position;
+            targetPos = targetPlayer.transform.position;
             targetRadius = 0.5f;
         }
         else if (Fortress.Instance != null)
@@ -90,15 +131,16 @@ public class Monster : MonoBehaviour
             if (attackTimer <= 0f)
             {
                 attackTimer = data.attackInterval;
-                if (targetPlayer) player.TakeDamage(damage);
+                if (targetPlayer != null) targetPlayer.TakeDamage(damage);
                 else Fortress.Instance.TakeDamage(damage);
             }
         }
     }
 
+    // プレイヤーの攻撃から呼ばれる(ホストのみ有効)
     public void TakeDamage(float amount)
     {
-        if (dead) return;
+        if (!IsServer || dead) return;
         hp -= amount;
         if (hp <= 0f) Die();
     }
@@ -118,13 +160,15 @@ public class Monster : MonoBehaviour
             }
         }
 
-        Destroy(gameObject);
+        if (IsSpawned) NetworkObject.Despawn(true);
     }
 
     public static void DespawnAll()
     {
         foreach (var m in All.ToArray())
-            if (m != null) Destroy(m.gameObject);
+        {
+            if (m != null && m.IsSpawned && m.IsServer) m.NetworkObject.Despawn(true);
+        }
     }
 
     private static Vector3 Flat(Vector3 v)

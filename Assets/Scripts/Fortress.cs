@@ -1,7 +1,9 @@
+using Unity.Netcode;
 using UnityEngine;
 
-// 中心の砦。HPが0になるとゲームオーバー
-public class Fortress : MonoBehaviour
+// 中心の砦。HPが0になるとゲームオーバー(HPはホストが管理し、全員に同期)
+// 砦のオブジェクトに NetworkObject も付けること
+public class Fortress : NetworkBehaviour
 {
     public static Fortress Instance { get; private set; }
 
@@ -9,22 +11,29 @@ public class Fortress : MonoBehaviour
     [Tooltip("砦の半径。モンスターはこの外周で攻撃を始める")]
     [SerializeField] private float radius = 2.5f;
 
+    private NetworkVariable<float> hp = new NetworkVariable<float>(0f);
+
     public float MaxHp => maxHp;
-    public float CurrentHp { get; private set; }
+    public float CurrentHp => hp.Value;
     public float Radius => radius;
 
     private void Awake()
     {
         Instance = this;
-        CurrentHp = maxHp;
     }
 
+    public override void OnNetworkSpawn()
+    {
+        if (IsServer) hp.Value = maxHp;
+    }
+
+    // モンスターから呼ばれる(ホストのみ有効)
     public void TakeDamage(float amount)
     {
-        if (CurrentHp <= 0f) return;
+        if (!IsServer || hp.Value <= 0f) return;
 
-        CurrentHp = Mathf.Max(0f, CurrentHp - amount);
-        if (CurrentHp <= 0f && WaveManager.Instance != null)
+        hp.Value = Mathf.Max(0f, hp.Value - amount);
+        if (hp.Value <= 0f && WaveManager.Instance != null)
             WaveManager.Instance.Defeat();
     }
 

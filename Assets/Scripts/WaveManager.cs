@@ -1,11 +1,14 @@
 using System;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public enum GamePhase { Combat, Collect, Victory, Defeat }
+public enum GamePhase { Lobby, Combat, Collect, Victory, Defeat }
 
-// ウェーブ進行: 戦闘2分 → 回収1分 を3ウェーブ繰り返す
-public class WaveManager : MonoBehaviour
+// ウェーブ進行(ホストが管理し、全員に同期)
+// ロビー → [戦闘2分 → 回収1分] × 3ウェーブ → クリア
+// GameSystems オブジェクトに NetworkObject と一緒に付ける
+public class WaveManager : NetworkBehaviour
 {
     public static WaveManager Instance { get; private set; }
 
@@ -23,7 +26,6 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private float combatDuration = 120f;
     [SerializeField] private float collectDuration = 60f;
 
-    // 要素数 = ウェーブ数。ウェーブごとの強化倍率
     [SerializeField] private WaveSetting[] waves =
     {
         new WaveSetting { spawnInterval = 3.0f, hpMultiplier = 1.0f, damageMultiplier = 1.0f, speedMultiplier = 1.0f, expMultiplier = 1.0f, dropRateMultiplier = 1.0f },
@@ -31,14 +33,27 @@ public class WaveManager : MonoBehaviour
         new WaveSetting { spawnInterval = 2.0f, hpMultiplier = 2.5f, damageMultiplier = 2.0f, speedMultiplier = 1.2f, expMultiplier = 1.6f, dropRateMultiplier = 1.4f },
     };
 
-    public int CurrentWave { get; private set; } = 1;
-    public GamePhase Phase { get; private set; }
-    public float TimeRemaining { get; private set; }
+    // ---- 同期される値(書き込めるのはホストだけ) ----
+    private NetworkVariable<GamePhase> phase = new NetworkVariable<GamePhase>(GamePhase.Lobby);
+    private NetworkVariable<int> wave = new NetworkVariable<int>(1);
+    // フェーズ終了時刻(サーバー時刻)。毎フレーム同期せず、各自が残り時間を計算する
+    private NetworkVariable<double> phaseEndTime = new NetworkVariable<double>(0.0);
+
+    public int CurrentWave => wave.Value;
+    public GamePhase Phase => phase.Value;
     public int TotalWaves => waves.Length;
     public bool IsFinished => Phase == GamePhase.Victory || Phase == GamePhase.Defeat;
     public WaveSetting CurrentSetting => waves[Mathf.Clamp(CurrentWave - 1, 0, waves.Length - 1)];
 
-    public event Action<int, GamePhase> OnPhaseChanged;
+    public float TimeRemaining
+    {
+        get
+        {
+            if (!IsSpawned) return 0f;
+            if (Phase != GamePhase.Combat && Phase != GamePhase.Collect) return 0f;
+            return Mathf.Max(0f, (float)(phaseEndTime.Value - NetworkManager.ServerTime.Time));
+        }
+    }
 
     private void Awake()
     {
@@ -48,23 +63,31 @@ public class WaveManager : MonoBehaviour
             Debug.LogError("WaveManager: waves が空です");
     }
 
-    private void Start()
+    // ホストがロビーで「Start Game」を押したときに呼ばれる
+    public void StartGame()
     {
-        CurrentWave = 1;
+        if (!IsServer || Phase != GamePhase.Lobby) return;
+        wave.Value = 1;
         SetPhase(GamePhase.Combat);
     }
 
     private void Update()
     {
+        if (!IsServer || !IsSpawned) return;
+
+        if (Phase == GamePhase.Lobby) return;
+
         if (IsFinished)
         {
+            // ホストが R でリスタート(全員のシーンを読み込み直す)
             if (GameInput.RestartPressed)
-                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            {
+                NetworkManager.SceneManager.LoadScene(SceneManager.GetActiveScene().name, LoadSceneMode.Single);
+            }
             return;
         }
 
-        TimeRemaining -= Time.deltaTime;
-        if (TimeRemaining <= 0f) NextPhase();
+        if (NetworkManager.ServerTime.Time >= phaseEndTime.Value) NextPhase();
     }
 
     private void NextPhase()
@@ -81,39 +104,51 @@ public class WaveManager : MonoBehaviour
             }
             else
             {
-                CurrentWave++;
+                wave.Value = CurrentWave + 1;
                 SetPhase(GamePhase.Combat);
             }
         }
     }
 
+    // 砦が壊れたとき Fortress から呼ばれる(ホストのみ)
     public void Defeat()
     {
-        if (IsFinished) return;
+        if (!IsServer || IsFinished) return;
         SetPhase(GamePhase.Defeat);
     }
 
     private void SetPhase(GamePhase next)
     {
-        Phase = next;
+        phase.Value = next;
+        double now = NetworkManager.ServerTime.Time;
+
         switch (next)
         {
             case GamePhase.Combat:
-                TimeRemaining = combatDuration;
+                phaseEndTime.Value = now + combatDuration;
                 Pickup.ClearAll(); // 前ウェーブの拾い忘れを消す
-                GameLog.Post($"WAVE {CurrentWave} START!");
+                AnnounceRpc($"WAVE {wave.Value} START!");
                 break;
             case GamePhase.Collect:
-                TimeRemaining = collectDuration;
+                phaseEndTime.Value = now + collectDuration;
                 Monster.DespawnAll(); // 残ったモンスターは撤退(ドロップなし)
-                GameLog.Post("COLLECT TIME! Pick up drops");
+                AnnounceRpc("COLLECT TIME! Pick up drops");
                 break;
             case GamePhase.Victory:
+                phaseEndTime.Value = now;
+                Monster.DespawnAll();
+                break;
             case GamePhase.Defeat:
-                TimeRemaining = 0f;
-                Time.timeScale = 0f;
+                phaseEndTime.Value = now;
+                Monster.DespawnAll();
                 break;
         }
-        OnPhaseChanged?.Invoke(CurrentWave, next);
+    }
+
+    // 全員の画面にメッセージを出す
+    [Rpc(SendTo.Everyone)]
+    private void AnnounceRpc(string message)
+    {
+        GameLog.Post(message);
     }
 }

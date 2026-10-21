@@ -1,18 +1,25 @@
+using Unity.Netcode;
 using UnityEngine;
 
-// 戦闘フェーズ中、スポーン地点からモンスターを出現させる
+// 戦闘フェーズ中、スポーン地点からモンスターを出現させる(ホストだけが動く)
 public class MonsterSpawner : MonoBehaviour
 {
     [SerializeField] private MonsterData[] monsterTypes;
     [SerializeField] private Transform[] spawnPoints;
+    [Tooltip("MonsterData の Prefab が空のときに使う、ネットワーク対応のモンスターのプレハブ(Monster.prefab)")]
+    [SerializeField] private Monster defaultMonsterPrefab;
     [Tooltip("同時に存在できる最大数")]
     [SerializeField] private int maxAlive = 40;
     [SerializeField] private float spawnScatter = 1.5f;
 
     private float timer;
+    private bool warned;
 
     private void Update()
     {
+        var nm = NetworkManager.Singleton;
+        if (nm == null || !nm.IsServer) return;
+
         var wm = WaveManager.Instance;
         if (wm == null || wm.Phase != GamePhase.Combat) return;
 
@@ -31,24 +38,24 @@ public class MonsterSpawner : MonoBehaviour
         MonsterData data = PickMonster(wave);
         if (data == null) return;
 
+        Monster prefab = data.prefab != null ? data.prefab : defaultMonsterPrefab;
+        if (prefab == null)
+        {
+            if (!warned)
+            {
+                Debug.LogError("MonsterSpawner: Default Monster Prefab が未設定です(Monster.prefab を入れてください)");
+                warned = true;
+            }
+            return;
+        }
+
         Transform point = spawnPoints[Random.Range(0, spawnPoints.Length)];
         Vector2 scatter = Random.insideUnitCircle * spawnScatter;
         Vector3 pos = point.position + new Vector3(scatter.x, 1f, scatter.y);
 
-        Monster monster;
-        if (data.prefab != null)
-        {
-            monster = Instantiate(data.prefab, pos, Quaternion.identity);
-        }
-        else
-        {
-            // プレハブ未設定なら仮のカプセルを生成
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = data.displayName;
-            go.transform.position = pos;
-            monster = go.AddComponent<Monster>();
-        }
-        monster.Init(data, setting);
+        Monster monster = Instantiate(prefab, pos, Quaternion.identity);
+        monster.ServerInit(data, setting);
+        monster.GetComponent<NetworkObject>().Spawn(true);
     }
 
     // spawnWeight による重み付き抽選(firstWave 以降のみ)

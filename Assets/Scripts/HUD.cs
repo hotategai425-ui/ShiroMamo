@@ -1,18 +1,22 @@
+using System.Text;
 using TMPro;
 using UnityEngine;
 
-// 画面表示(TextMeshPro)。割り当てなくても動くよう null チェック済み
+// 画面表示(TextMeshPro)。割り当てなくても動くよう null チェック済み。
+// teamText(相棒の状態)は新しく追加した欄。使わなければ空のままでOK
 public class HUD : MonoBehaviour
 {
     [SerializeField] private TMP_Text waveText;
     [SerializeField] private TMP_Text timerText;
     [SerializeField] private TMP_Text fortressText;
     [SerializeField] private TMP_Text playerText;
+    [SerializeField] private TMP_Text teamText;
     [SerializeField] private TMP_Text messageText;
     [SerializeField] private TMP_Text resultText;
     [SerializeField] private float messageDuration = 3f;
 
     private float messageHideTime;
+    private readonly StringBuilder sb = new StringBuilder();
 
     private void OnEnable() { GameLog.OnMessage += ShowMessage; }
     private void OnDisable() { GameLog.OnMessage -= ShowMessage; }
@@ -21,26 +25,33 @@ public class HUD : MonoBehaviour
     {
         if (messageText) messageText.text = "";
         if (resultText) resultText.text = "";
+        if (teamText) teamText.text = "";
     }
 
     private void Update()
     {
         var wm = WaveManager.Instance;
         var fort = Fortress.Instance;
-        var p = PlayerStats.Instance;
+        var p = PlayerStats.Local;
 
         if (wm != null)
         {
-            if (waveText) waveText.text = $"WAVE {wm.CurrentWave}/{wm.TotalWaves}  [{PhaseLabel(wm.Phase)}]";
+            if (waveText)
+            {
+                waveText.text = wm.Phase == GamePhase.Lobby
+                    ? "LOBBY"
+                    : $"WAVE {wm.CurrentWave}/{wm.TotalWaves}  [{PhaseLabel(wm.Phase)}]";
+            }
             if (timerText)
             {
                 int t = Mathf.CeilToInt(wm.TimeRemaining);
-                timerText.text = $"{t / 60:00}:{t % 60:00}";
+                timerText.text = wm.Phase == GamePhase.Lobby ? "" : $"{t / 60:00}:{t % 60:00}";
             }
             if (resultText)
             {
-                if (wm.Phase == GamePhase.Victory) resultText.text = "VICTORY!\nPress R to restart";
-                else if (wm.Phase == GamePhase.Defeat) resultText.text = "GAME OVER\nPress R to restart";
+                if (wm.Phase == GamePhase.Victory) resultText.text = "VICTORY!\nHost presses R to restart";
+                else if (wm.Phase == GamePhase.Defeat) resultText.text = "GAME OVER\nHost presses R to restart";
+                else resultText.text = "";
             }
         }
 
@@ -56,6 +67,20 @@ public class HUD : MonoBehaviour
                 $"EXP {Mathf.FloorToInt(p.Exp)}/{Mathf.CeilToInt(p.ExpToNext)}\n" +
                 $"ATK {p.Attack:0.#}  DEF {p.Defense:0.#}\n" +
                 $"Weapon: {weapon}\nArmor: {armor}";
+        }
+
+        // 相棒(自分以外のプレイヤー)の状態
+        if (teamText)
+        {
+            sb.Clear();
+            foreach (var other in PlayerStats.All)
+            {
+                if (other == null || other == p) continue;
+                sb.Append($"Player{other.OwnerClientId + 1}  Lv {other.Level}  HP {Mathf.CeilToInt(other.CurrentHp)}/{Mathf.CeilToInt(other.MaxHp)}");
+                if (other.IsDead) sb.Append("  (DOWN)");
+                sb.Append('\n');
+            }
+            teamText.text = sb.ToString();
         }
 
         if (messageText && messageText.text != "" && Time.unscaledTime > messageHideTime)

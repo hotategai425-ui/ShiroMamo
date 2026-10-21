@@ -1,35 +1,41 @@
+using Unity.Netcode;
 using UnityEngine;
 
 // 武器・防具スロット。拾った装備が今より良ければ自動で装備、
-// そうでなければ経験値に変換する。
-public class PlayerEquipment : MonoBehaviour
+// そうでなければ経験値に変換する。(判定はホスト、装備中の番号は全員に同期)
+public class PlayerEquipment : NetworkBehaviour
 {
-    public ItemData Weapon { get; private set; }
-    public ItemData Armor { get; private set; }
+    private NetworkVariable<int> weaponIndex = new NetworkVariable<int>(-1);
+    private NetworkVariable<int> armorIndex = new NetworkVariable<int>(-1);
+
+    public ItemData Weapon => ItemDatabase.Get(weaponIndex.Value);
+    public ItemData Armor => ItemDatabase.Get(armorIndex.Value);
 
     public float TotalAttack => (Weapon != null ? Weapon.attackBonus : 0f) + (Armor != null ? Armor.attackBonus : 0f);
     public float TotalDefense => (Weapon != null ? Weapon.defenseBonus : 0f) + (Armor != null ? Armor.defenseBonus : 0f);
     public float TotalMaxHp => (Weapon != null ? Weapon.maxHpBonus : 0f) + (Armor != null ? Armor.maxHpBonus : 0f);
 
+    // ホストだけが呼ぶ(ItemPickup から)
     public void ReceiveItem(ItemData item)
     {
-        if (item == null) return;
+        if (!IsServer || item == null) return;
 
         var stats = GetComponent<PlayerStats>();
-        ItemData current = item.slot == ItemSlot.Weapon ? Weapon : Armor;
+        int index = ItemDatabase.IndexOf(item);
 
-        if (current == null || item.Score > current.Score)
+        NetworkVariable<int> slotVar = item.slot == ItemSlot.Weapon ? weaponIndex : armorIndex;
+        ItemData current = ItemDatabase.Get(slotVar.Value);
+
+        if (index >= 0 && (current == null || item.Score > current.Score))
         {
-            if (item.slot == ItemSlot.Weapon) Weapon = item;
-            else Armor = item;
-
-            if (stats != null) stats.ClampHp();
-            GameLog.Post($"Equipped: {item.displayName}");
+            slotVar.Value = index;
+            stats.ClampHp();
+            stats.Notify($"Equipped: {item.displayName}");
         }
         else
         {
-            if (stats != null) stats.AddExp(item.salvageExp);
-            GameLog.Post($"Salvaged {item.displayName} (+{item.salvageExp:0} EXP)");
+            stats.AddExp(item.salvageExp);
+            stats.Notify($"Salvaged {item.displayName} (+{item.salvageExp:0} EXP)");
         }
     }
 }

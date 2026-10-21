@@ -1,6 +1,8 @@
+using Unity.Netcode;
 using UnityEngine;
 
-// ドロップ品の生成。プレハブ未設定なら仮のプリミティブ(球/立方体/円柱)で生成
+// ドロップ品の生成(ホストだけが呼ぶ)。
+// ネットワーク対応のプレハブ(ExpOrb.prefab / ItemPickup.prefab)が必要。
 public class DropManager : MonoBehaviour
 {
     public static DropManager Instance { get; private set; }
@@ -15,47 +17,35 @@ public class DropManager : MonoBehaviour
 
     public void SpawnExp(Vector3 pos, float amount)
     {
-        Vector3 p = Scatter(pos);
-        ExpOrb orb;
+        if (expOrbPrefab == null)
+        {
+            Debug.LogError("DropManager: Exp Orb Prefab が未設定です");
+            return;
+        }
 
-        if (expOrbPrefab != null)
-        {
-            orb = Instantiate(expOrbPrefab, p, Quaternion.identity);
-        }
-        else
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            go.name = "ExpOrb";
-            Destroy(go.GetComponent<Collider>());
-            go.transform.position = p;
-            go.transform.localScale = Vector3.one * 0.4f;
-            go.GetComponent<Renderer>().material.color = new Color(0.3f, 0.9f, 1f);
-            orb = go.AddComponent<ExpOrb>();
-        }
+        ExpOrb orb = Instantiate(expOrbPrefab, Scatter(pos), Quaternion.identity);
         orb.Init(amount);
+        orb.GetComponent<NetworkObject>().Spawn(true);
     }
 
     public void SpawnItem(Vector3 pos, ItemData item)
     {
-        Vector3 p = Scatter(pos);
-        ItemPickup pickup;
+        if (itemPickupPrefab == null)
+        {
+            Debug.LogError("DropManager: Item Pickup Prefab が未設定です");
+            return;
+        }
 
-        if (itemPickupPrefab != null)
+        int index = ItemDatabase.IndexOf(item);
+        if (index < 0)
         {
-            pickup = Instantiate(itemPickupPrefab, p, Quaternion.identity);
+            Debug.LogError($"DropManager: {item.displayName} が ItemDatabase に登録されていません");
+            return;
         }
-        else
-        {
-            bool weapon = item.slot == ItemSlot.Weapon;
-            var go = GameObject.CreatePrimitive(weapon ? PrimitiveType.Cube : PrimitiveType.Cylinder);
-            go.name = "Item_" + item.displayName;
-            Destroy(go.GetComponent<Collider>());
-            go.transform.position = p;
-            go.transform.localScale = weapon ? new Vector3(0.25f, 0.9f, 0.25f) : new Vector3(0.6f, 0.2f, 0.6f);
-            go.GetComponent<Renderer>().material.color = item.RarityColor;
-            pickup = go.AddComponent<ItemPickup>();
-        }
-        pickup.Init(item);
+
+        ItemPickup pickup = Instantiate(itemPickupPrefab, Scatter(pos), Quaternion.identity);
+        pickup.Init(index);
+        pickup.GetComponent<NetworkObject>().Spawn(true);
     }
 
     private static Vector3 Scatter(Vector3 pos)
