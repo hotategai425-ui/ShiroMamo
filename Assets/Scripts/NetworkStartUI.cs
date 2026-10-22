@@ -195,7 +195,7 @@ public class NetworkStartUI : MonoBehaviour
 
             ConfigureRelayTransport(
                 transport,
-                new RelayServerData(allocation, RelayConnectionType)
+                AllocationUtils.ToRelayServerData(allocation, RelayConnectionType)
             );
 
             nm.NetworkConfig.ConnectionApproval = true;
@@ -234,7 +234,7 @@ public class NetworkStartUI : MonoBehaviour
 
             ConfigureRelayTransport(
                 transport,
-                new RelayServerData(allocation, RelayConnectionType)
+                AllocationUtils.ToRelayServerData(allocation, RelayConnectionType)
             );
 
             if (!nm.StartClient()) status = "接続の開始に失敗しました";
