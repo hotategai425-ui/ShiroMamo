@@ -1162,8 +1162,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc6cc1fba71079441aac61d09ab49a31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  expOrbPrefab: {fileID: 0}
-  itemPickupPrefab: {fileID: 0}
+  expOrbPrefab: {fileID: 4901875289376559608, guid: f696393f1e2ca6b42aa0dbc55ebd3329, type: 3}
+  itemPickupPrefab: {fileID: 8458658183532475192, guid: adb544be3985bec438a46b9ddf9f78d2, type: 3}
 --- !u!114 &1170188743
 MonoBehaviour:
   m_ObjectHideFlags: 0
