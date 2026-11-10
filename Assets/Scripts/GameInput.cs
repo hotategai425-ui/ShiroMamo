@@ -40,6 +40,17 @@ public static class GameInput
         }
     }
 
+    public static bool HandPressed(bool leftHand)
+    {
+#if ENABLE_INPUT_SYSTEM
+        var mouse = Mouse.current;
+        if (mouse == null) return false;
+        return (leftHand ? mouse.leftButton : mouse.rightButton).wasPressedThisFrame;
+#else
+        return Input.GetMouseButtonDown(leftHand ? 0 : 1);
+#endif
+    }
+
     // R キー(リスタート)
     public static bool RestartPressed
     {

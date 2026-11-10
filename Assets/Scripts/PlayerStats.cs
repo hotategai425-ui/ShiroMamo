@@ -50,9 +50,11 @@ public class PlayerStats : NetworkBehaviour
     public bool IsDead => isDead.Value;
 
     public float MaxHp => baseMaxHp + hpPerLevel * (Level - 1) + equipment.TotalMaxHp;
-    public float Attack => baseAttack + attackPerLevel * (Level - 1) + equipment.TotalAttack;
     public float Defense => baseDefense + defensePerLevel * (Level - 1) + equipment.TotalDefense;
     public float MoveSpeed => baseMoveSpeed + moveSpeedPerLevel * (Level - 1);
+
+    public float GetAttack(bool leftHand) => baseAttack + attackPerLevel * (Level - 1)
+        + (equipment.GetWeapon(leftHand)?.attackBonus ?? 0f) + (equipment.Armor?.attackBonus ?? 0f);
 
     private Vector3 SpawnPosition
     {

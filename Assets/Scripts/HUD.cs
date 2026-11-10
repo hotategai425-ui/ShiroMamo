@@ -60,13 +60,16 @@ public class HUD : MonoBehaviour
 
         if (p != null && playerText)
         {
-            string weapon = p.Equipment.Weapon != null ? p.Equipment.Weapon.displayName : "-";
+            string left = p.Equipment.LeftWeapon != null ? p.Equipment.LeftWeapon.displayName : "-";
+            string right = p.Equipment.RightWeapon != null ? p.Equipment.RightWeapon.displayName : "Unarmed";
+            string leftAttack = p.Equipment.LeftWeapon != null ? $"{p.GetAttack(leftHand: true):0.#}" : "-";
             string armor = p.Equipment.Armor != null ? p.Equipment.Armor.displayName : "-";
             playerText.text =
                 $"Lv {p.Level}  HP {Mathf.CeilToInt(p.CurrentHp)}/{Mathf.CeilToInt(p.MaxHp)}\n" +
                 $"EXP {Mathf.FloorToInt(p.Exp)}/{Mathf.CeilToInt(p.ExpToNext)}\n" +
-                $"ATK {p.Attack:0.#}  DEF {p.Defense:0.#}\n" +
-                $"Weapon: {weapon}\nArmor: {armor}";
+                $"DEF {p.Defense:0.#}  Armor: {armor}\n" +
+                $"LMB: {left}  ATK {leftAttack}\n" +
+                $"RMB: {right}  ATK {p.GetAttack(leftHand: false):0.#}";
         }
 
         // 相棒(自分以外のプレイヤー)の状態

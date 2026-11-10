@@ -25,6 +25,8 @@ MonoBehaviour:
   firstWave: 2
   expReward: 30
   itemDropChance: 0.5
-  dropTable: []
+  dropTable:
+  - item: {fileID: 11400000, guid: 92521a70941d415ea654a128682df9c2, type: 2}
+    weight: 1
   applyTint: 1
   tintColor: {r: 0.3189869, g: 0, b: 1, a: 1}

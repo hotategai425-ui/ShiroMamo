@@ -10,6 +10,8 @@ public class ItemData : ScriptableObject
     public string displayName = "Item";
     public ItemSlot slot = ItemSlot.Weapon;
     public ItemRarity rarity = ItemRarity.Common;
+    [Tooltip("ドロップ時と武器装備時に使う表示用プレハブ。空ならドロップ時だけ仮モデルを使います。")]
+    public GameObject pickupVisualPrefab;
 
     [Header("装備ボーナス")]
     public float attackBonus;

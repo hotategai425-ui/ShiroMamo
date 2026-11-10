@@ -1,7 +1,7 @@
 using Unity.Netcode;
 using UnityEngine;
 
-// 射程内でいちばん近いモンスターを自動攻撃(ホストが全プレイヤー分を処理する)
+// 左右のクリックを受け取り、ホストが攻撃判定を行う。
 [RequireComponent(typeof(PlayerStats))]
 public class PlayerAttack : NetworkBehaviour
 {
@@ -9,7 +9,8 @@ public class PlayerAttack : NetworkBehaviour
     [SerializeField] private float attackInterval = 0.5f;
 
     private PlayerStats stats;
-    private float timer;
+    private double nextLeftAttack;
+    private double nextRightAttack;
 
     private void Awake()
     {
@@ -18,37 +19,58 @@ public class PlayerAttack : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsServer || !IsSpawned) return;
-        if (stats.IsDead) return;
+        if (!IsSpawned || !IsOwner || !CanAttack()) return;
 
-        // 戦闘フェーズ以外は攻撃しない(ロビーなど)
-        var wm = WaveManager.Instance;
-        if (wm == null || wm.Phase != GamePhase.Combat) return;
+        bool leftPressed = GameInput.HandPressed(leftHand: true) && stats.Equipment.LeftWeapon != null;
+        bool rightPressed = GameInput.HandPressed(leftHand: false);
+        if (!leftPressed && !rightPressed) return;
 
-        timer -= Time.deltaTime;
-        if (timer > 0f) return;
-
-        Monster target = FindNearest();
-        if (target == null) return;
-
-        timer = attackInterval;
-        target.TakeDamage(stats.Attack);
-        // TODO: ここで攻撃アニメ・エフェクト・SEを再生(全員に見せるなら Rpc で通知)
+        Camera camera = Camera.main;
+        Vector3 aim = camera != null ? camera.transform.forward : transform.forward;
+        if (leftPressed) AttackRpc(true, aim);
+        if (rightPressed) AttackRpc(false, aim);
     }
 
-    private Monster FindNearest()
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void AttackRpc(bool leftHand, Vector3 aim)
     {
+        if (!CanAttack()) return;
+        // まだ武器がない状態から敵を倒せるよう、右手は素手でも攻撃できる。
+        if (leftHand && stats.Equipment.LeftWeapon == null) return;
+
+        double now = NetworkManager.ServerTime.Time;
+        ref double nextAttack = ref (leftHand ? ref nextLeftAttack : ref nextRightAttack);
+        if (now < nextAttack) return;
+
+        aim.y = 0f;
+        aim.Normalize();
+        if (!(aim.sqrMagnitude > 0f)) return;
+
+        nextAttack = now + attackInterval;
+        Monster target = FindTarget(aim);
+        if (target != null) target.TakeDamage(stats.GetAttack(leftHand));
+    }
+
+    private bool CanAttack()
+    {
+        var wave = WaveManager.Instance;
+        return !stats.IsDead && wave != null && wave.Phase == GamePhase.Combat;
+    }
+
+    private Monster FindTarget(Vector3 aim)
+    {
+        const float CosHalfAngle = 0.707107f; // 正面の左右45度
         Monster best = null;
         float bestSqr = attackRange * attackRange;
         Vector3 pos = transform.position;
 
         foreach (var m in Monster.All)
         {
-            if (m == null) continue;
+            if (m == null || !m.IsSpawned) continue;
             Vector3 d = m.transform.position - pos;
             d.y = 0f;
             float sqr = d.sqrMagnitude;
-            if (sqr <= bestSqr)
+            if (sqr <= bestSqr && Vector3.Dot(aim, d) >= CosHalfAngle * Mathf.Sqrt(sqr))
             {
                 bestSqr = sqr;
                 best = m;
