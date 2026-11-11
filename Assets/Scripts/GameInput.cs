@@ -40,6 +40,55 @@ public static class GameInput
         }
     }
 
+    public static bool JumpPressed
+    {
+        get
+        {
+#if ENABLE_INPUT_SYSTEM
+            return Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame;
+#else
+            return Input.GetKeyDown(KeyCode.Space);
+#endif
+        }
+    }
+
+    public static bool BlinkPressed
+    {
+        get
+        {
+#if ENABLE_INPUT_SYSTEM
+            var keyboard = Keyboard.current;
+            return keyboard != null && (keyboard.leftShiftKey.wasPressedThisFrame || keyboard.rightShiftKey.wasPressedThisFrame);
+#else
+            return Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift);
+#endif
+        }
+    }
+
+    public static bool InventoryPressed
+    {
+        get
+        {
+#if ENABLE_INPUT_SYSTEM
+            return Keyboard.current != null && Keyboard.current.iKey.wasPressedThisFrame;
+#else
+            return Input.GetKeyDown(KeyCode.I);
+#endif
+        }
+    }
+
+    public static bool CancelPressed
+    {
+        get
+        {
+#if ENABLE_INPUT_SYSTEM
+            return Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+#else
+            return Input.GetKeyDown(KeyCode.Escape);
+#endif
+        }
+    }
+
     public static bool HandPressed(bool leftHand)
     {
 #if ENABLE_INPUT_SYSTEM

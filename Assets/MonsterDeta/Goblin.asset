@@ -28,5 +28,7 @@ MonoBehaviour:
   dropTable:
   - item: {fileID: 11400000, guid: 92521a70941d415ea654a128682df9c2, type: 2}
     weight: 1
+  - item: {fileID: 11400000, guid: 7729741056864e86ba72821dad8acbbe, type: 2}
+    weight: 1
   applyTint: 1
   tintColor: {r: 0, g: 1, b: 0.17095089, a: 1}

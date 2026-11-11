@@ -419,6 +419,10 @@ MonoBehaviour:
   baseAttack: 12
   baseDefense: 0
   baseMoveSpeed: 6
+  jumpHeight: 1.5
+  blinkDistance: 4
+  blinkDuration: 0.15
+  blinkCooldown: 1.5
   hpPerLevel: 15
   attackPerLevel: 2
   defensePerLevel: 0.5

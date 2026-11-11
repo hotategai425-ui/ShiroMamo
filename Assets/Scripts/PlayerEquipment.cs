@@ -1,9 +1,10 @@
 using Unity.Netcode;
 using UnityEngine;
 
-// 装備の判定はホストが行い、左右の武器と防具の番号を同期する。
+// 武器は拾った順に保管する。左右の装備枠は持ち物の番号を参照する。
 public class PlayerEquipment : NetworkBehaviour
 {
+    private NetworkList<int> weapons;
     private NetworkVariable<int> rightWeaponIndex = new NetworkVariable<int>(-1);
     private NetworkVariable<int> leftWeaponIndex = new NetworkVariable<int>(-1);
     private NetworkVariable<int> armorIndex = new NetworkVariable<int>(-1);
@@ -14,13 +15,58 @@ public class PlayerEquipment : NetworkBehaviour
     private ItemData displayedRight;
     private Transform visualParent;
 
-    public ItemData RightWeapon => ItemDatabase.Get(rightWeaponIndex.Value);
-    public ItemData LeftWeapon => ItemDatabase.Get(leftWeaponIndex.Value);
+    public bool IsInventoryOpen { get; private set; }
+    public int WeaponCount => weapons == null ? 0 : weapons.Count;
+    public ItemData RightWeapon => GetInventoryWeapon(rightWeaponIndex.Value);
+    public ItemData LeftWeapon => GetInventoryWeapon(leftWeaponIndex.Value);
     public ItemData Armor => ItemDatabase.Get(armorIndex.Value);
 
     public ItemData GetWeapon(bool leftHand) => leftHand ? LeftWeapon : RightWeapon;
     public float TotalDefense => (LeftWeapon?.defenseBonus ?? 0f) + (RightWeapon?.defenseBonus ?? 0f) + (Armor?.defenseBonus ?? 0f);
     public float TotalMaxHp => (LeftWeapon?.maxHpBonus ?? 0f) + (RightWeapon?.maxHpBonus ?? 0f) + (Armor?.maxHpBonus ?? 0f);
+
+    private void Awake()
+    {
+        weapons = new NetworkList<int>();
+    }
+
+    private void Update()
+    {
+        if (!IsSpawned || !IsOwner) return;
+        if (GameInput.InventoryPressed) IsInventoryOpen = !IsInventoryOpen;
+        if (GameInput.CancelPressed || GetComponent<PlayerStats>().IsDead) CloseInventory();
+    }
+
+    public void CloseInventory() => IsInventoryOpen = false;
+
+    public int GetEquippedWeaponIndex(bool leftHand) => leftHand ? leftWeaponIndex.Value : rightWeaponIndex.Value;
+
+    public ItemData GetInventoryWeapon(int index)
+    {
+        if (index < 0 || index >= WeaponCount) return null;
+        return ItemDatabase.Get(weapons[index]);
+    }
+
+    public void EquipWeapon(int inventoryIndex, bool leftHand)
+    {
+        if (!IsSpawned || !IsOwner) return;
+        EquipWeaponRpc(inventoryIndex, leftHand);
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void EquipWeaponRpc(int inventoryIndex, bool leftHand)
+    {
+        // -1 は装備を外す要求。それ以外は所有している武器だけを許可する。
+        if (inventoryIndex != -1 && GetInventoryWeapon(inventoryIndex) == null) return;
+
+        NetworkVariable<int> target = leftHand ? leftWeaponIndex : rightWeaponIndex;
+        NetworkVariable<int> other = leftHand ? rightWeaponIndex : leftWeaponIndex;
+        if (target.Value == inventoryIndex) return;
+        // 反対の手に持っている個体を選んだ場合は、左右を入れ替える。
+        if (inventoryIndex >= 0 && other.Value == inventoryIndex) other.Value = target.Value;
+        target.Value = inventoryIndex;
+        GetComponent<PlayerStats>().ClampHp();
+    }
 
     // ホストだけが呼ぶ(ItemPickup から)
     public void ReceiveItem(ItemData item)
@@ -29,29 +75,28 @@ public class PlayerEquipment : NetworkBehaviour
 
         var stats = GetComponent<PlayerStats>();
         int index = ItemDatabase.IndexOf(item);
+        if (index < 0) return;
 
-        NetworkVariable<int> slotVar = item.slot == ItemSlot.Weapon ? SelectWeaponSlot() : armorIndex;
-        ItemData current = ItemDatabase.Get(slotVar.Value);
+        if (item.slot == ItemSlot.Weapon)
+        {
+            weapons.Add(index);
+            stats.Notify($"Collected: {item.displayName} (I: Inventory)");
+            return;
+        }
+
+        ItemData current = Armor;
 
         if (index >= 0 && (current == null || item.Score > current.Score))
         {
-            slotVar.Value = index;
+            armorIndex.Value = index;
             stats.ClampHp();
-            string slot = slotVar == rightWeaponIndex ? "Right" : slotVar == leftWeaponIndex ? "Left" : "Armor";
-            stats.Notify($"Equipped ({slot}): {item.displayName}");
+            stats.Notify($"Equipped (Armor): {item.displayName}");
         }
         else
         {
             stats.AddExp(item.salvageExp);
             stats.Notify($"Salvaged {item.displayName} (+{item.salvageExp:0} EXP)");
         }
-    }
-
-    private NetworkVariable<int> SelectWeaponSlot()
-    {
-        if (RightWeapon == null) return rightWeaponIndex;
-        if (LeftWeapon == null) return leftWeaponIndex;
-        return LeftWeapon.Score <= RightWeapon.Score ? leftWeaponIndex : rightWeaponIndex;
     }
 
     private void LateUpdate()
@@ -85,6 +130,7 @@ public class PlayerEquipment : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        CloseInventory();
         RemoveVisual(ref leftVisual);
         RemoveVisual(ref rightVisual);
         visualParent = null;

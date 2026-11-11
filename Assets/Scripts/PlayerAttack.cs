@@ -19,7 +19,7 @@ public class PlayerAttack : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsSpawned || !IsOwner || !CanAttack()) return;
+        if (!IsSpawned || !IsOwner || !CanAttack() || stats.Equipment.IsInventoryOpen) return;
 
         bool leftPressed = GameInput.HandPressed(leftHand: true) && stats.Equipment.LeftWeapon != null;
         bool rightPressed = GameInput.HandPressed(leftHand: false);
@@ -42,11 +42,26 @@ public class PlayerAttack : NetworkBehaviour
         ref double nextAttack = ref (leftHand ? ref nextLeftAttack : ref nextRightAttack);
         if (now < nextAttack) return;
 
-        aim.y = 0f;
+        ItemData weapon = stats.Equipment.GetWeapon(leftHand);
+        bool projectile = weapon != null && weapon.attackType == WeaponAttackType.Projectile;
+        if (projectile && weapon.projectilePrefab == null) return;
+
+        if (!projectile) aim.y = 0f;
+        if (!(aim.sqrMagnitude > 0f) || float.IsInfinity(aim.sqrMagnitude)) return;
         aim.Normalize();
-        if (!(aim.sqrMagnitude > 0f)) return;
 
         nextAttack = now + attackInterval;
+        if (projectile)
+        {
+            // 球を壁の向こうに出さないよう、プレイヤーの横から発射する。
+            Vector3 origin = transform.position + Vector3.up * 0.6f
+                + transform.right * (leftHand ? -0.35f : 0.35f);
+            MagicProjectile shot = Instantiate(weapon.projectilePrefab, origin, Quaternion.LookRotation(aim));
+            shot.Init(aim, weapon.projectileSpeed, weapon.projectileLifetime, stats.GetAttack(leftHand));
+            shot.GetComponent<NetworkObject>().Spawn(true);
+            return;
+        }
+
         Monster target = FindTarget(aim);
         if (target != null) target.TakeDamage(stats.GetAttack(leftHand));
     }

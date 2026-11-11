@@ -18,6 +18,13 @@ public class PlayerStats : NetworkBehaviour
     [SerializeField] private float baseDefense = 0f;
     [SerializeField] private float baseMoveSpeed = 6f;
 
+    [Header("ジャンプ・ブリンク (高さと距離はm、間隔は秒)")]
+    [Min(0f), SerializeField] private float jumpHeight = 1.5f;
+    [Min(0f), SerializeField] private float blinkDistance = 4f;
+    [Tooltip("この秒数をかけてブリンク距離を移動します。短いほど高速です。")]
+    [Min(0.02f), SerializeField] private float blinkDuration = 0.15f;
+    [Min(0f), SerializeField] private float blinkCooldown = 1.5f;
+
     [Header("レベルごとの上昇量")]
     [SerializeField] private float hpPerLevel = 15f;
     [SerializeField] private float attackPerLevel = 2f;
@@ -52,6 +59,10 @@ public class PlayerStats : NetworkBehaviour
     public float MaxHp => baseMaxHp + hpPerLevel * (Level - 1) + equipment.TotalMaxHp;
     public float Defense => baseDefense + defensePerLevel * (Level - 1) + equipment.TotalDefense;
     public float MoveSpeed => baseMoveSpeed + moveSpeedPerLevel * (Level - 1);
+    public float JumpHeight => Mathf.Max(0f, jumpHeight);
+    public float BlinkDistance => Mathf.Max(0f, blinkDistance);
+    public float BlinkDuration => Mathf.Max(0.02f, blinkDuration);
+    public float BlinkCooldown => Mathf.Max(0f, blinkCooldown);
 
     public float GetAttack(bool leftHand) => baseAttack + attackPerLevel * (Level - 1)
         + (equipment.GetWeapon(leftHand)?.attackBonus ?? 0f) + (equipment.Armor?.attackBonus ?? 0f);

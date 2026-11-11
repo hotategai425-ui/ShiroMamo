@@ -42,7 +42,7 @@ public class CameraFollow : MonoBehaviour
 
         // 戦闘/回収中だけ視点操作+カーソル固定。ロビーやクリア後はカーソルを出す
         var wm = WaveManager.Instance;
-        bool active = local != null && wm != null &&
+        bool active = local != null && !local.Equipment.IsInventoryOpen && wm != null &&
                       (wm.Phase == GamePhase.Combat || wm.Phase == GamePhase.Collect);
         SetCursorLocked(active);
         if (!active) return;

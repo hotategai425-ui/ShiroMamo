@@ -17,6 +17,9 @@ public class HUD : MonoBehaviour
 
     private float messageHideTime;
     private readonly StringBuilder sb = new StringBuilder();
+    private Vector2 inventoryScroll;
+    private ItemData[] inventoryItems;
+    private PlayerEquipment inventoryOwner;
 
     private void OnEnable() { GameLog.OnMessage += ShowMessage; }
     private void OnDisable() { GameLog.OnMessage -= ShowMessage; }
@@ -95,6 +98,91 @@ public class HUD : MonoBehaviour
         if (!messageText) return;
         messageText.text = msg;
         messageHideTime = Time.unscaledTime + messageDuration;
+    }
+
+    private void OnGUI()
+    {
+        var player = PlayerStats.Local;
+        if (player == null) return;
+
+        var equipment = player.Equipment;
+        if (!equipment.IsInventoryOpen)
+        {
+            GUI.Label(new Rect(20f, Screen.height - 32f, 240f, 28f), $"I: Weapons ({equipment.WeaponCount})");
+            return;
+        }
+
+        // Layout と Repaint の間に拾得が起きても、同じ行数で描画する。
+        if (Event.current.type == EventType.Layout || inventoryItems == null || inventoryOwner != equipment)
+        {
+            inventoryOwner = equipment;
+            inventoryItems = new ItemData[equipment.WeaponCount];
+            for (int i = 0; i < inventoryItems.Length; i++)
+                inventoryItems[i] = equipment.GetInventoryWeapon(i);
+        }
+
+        float width = Mathf.Min(680f, Screen.width - 20f);
+        float height = Mathf.Min(560f, Screen.height - 20f);
+        var window = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
+        GUI.Box(window, GUIContent.none);
+        GUILayout.BeginArea(new Rect(window.x + 12f, window.y + 12f, width - 24f, height - 24f));
+        GUILayout.BeginHorizontal();
+        GUILayout.Label($"Weapons ({equipment.WeaponCount})     I / Esc: Close");
+        if (GUILayout.Button("Close", GUILayout.Width(70f)))
+        {
+            equipment.CloseInventory();
+            GUIUtility.ExitGUI();
+        }
+        GUILayout.EndHorizontal();
+        GUILayout.Label("Choose a weapon for each hand. Combat continues while this window is open.");
+
+        DrawEquippedHand(equipment, leftHand: true);
+        DrawEquippedHand(equipment, leftHand: false);
+        GUILayout.Space(10f);
+        if (inventoryItems.Length == 0) GUILayout.Label("No weapons yet. Defeat monsters and collect their drops.");
+
+        inventoryScroll = GUILayout.BeginScrollView(inventoryScroll);
+        for (int i = 0; i < inventoryItems.Length; i++)
+        {
+            ItemData item = inventoryItems[i];
+            if (item == null) continue;
+
+            string hand = "";
+            if (equipment.GetEquippedWeaponIndex(true) == i) hand = " [Left]";
+            if (equipment.GetEquippedWeaponIndex(false) == i) hand = " [Right]";
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label($"#{i + 1}  {item.displayName}  ({item.rarity}){hand}");
+            GUILayout.Label($"ATK +{item.attackBonus:0.#}    DEF +{item.defenseBonus:0.#}    Max HP +{item.maxHpBonus:0.#}");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Equip Left (LMB)"))
+            {
+                equipment.EquipWeapon(i, leftHand: true);
+                GUIUtility.ExitGUI();
+            }
+            if (GUILayout.Button("Equip Right (RMB)"))
+            {
+                equipment.EquipWeapon(i, leftHand: false);
+                GUIUtility.ExitGUI();
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+        }
+        GUILayout.EndScrollView();
+        GUILayout.EndArea();
+    }
+
+    private static void DrawEquippedHand(PlayerEquipment equipment, bool leftHand)
+    {
+        ItemData item = equipment.GetWeapon(leftHand);
+        string hand = leftHand ? "Left (LMB)" : "Right (RMB)";
+        GUILayout.BeginHorizontal();
+        GUILayout.Label($"{hand}: {(item != null ? item.displayName : "Empty")}");
+        if (item != null && GUILayout.Button("Unequip", GUILayout.Width(80f)))
+        {
+            equipment.EquipWeapon(-1, leftHand);
+            GUIUtility.ExitGUI();
+        }
+        GUILayout.EndHorizontal();
     }
 
     private static string PhaseLabel(GamePhase phase)
