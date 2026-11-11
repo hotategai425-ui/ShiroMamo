@@ -20,6 +20,13 @@ public class ItemData : ScriptableObject
     [Min(0.1f)] public float projectileSpeed = 20f;
     [Min(0.1f)] public float projectileLifetime = 2f;
 
+    [Header("近接武器の形と動作 (武器のローカル座標)")]
+    public Vector3 bladeBase = new Vector3(0f, 0.2f, 0f);
+    public Vector3 bladeTip = new Vector3(0f, 1.4f, 0f);
+    [Min(0.01f)] public float bladeRadius = 0.06f;
+    [Min(0.1f)] public float swingDuration = 0.3f;
+    [Min(0.1f)] public float meleeScale = 0.55f;
+
     [Header("装備ボーナス")]
     public float attackBonus;
     public float defenseBonus;

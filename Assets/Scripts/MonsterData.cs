@@ -27,6 +27,12 @@ public class MonsterData : ScriptableObject
     public float aggroRange = 4f;
     public float scale = 1f;
 
+    [Header("被弾時のノックバック")]
+    [Tooltip("押し戻される初速(m/秒)。0で無効。")]
+    [Min(0f)] public float knockbackSpeed = 8f;
+    [Tooltip("押し戻されながら減速する時間(秒)。0で無効。")]
+    [Min(0f)] public float knockbackDuration = 0.2f;
+
     [Header("出現")]
     public float spawnWeight = 1f;
     [Tooltip("このウェーブ以降に出現(1始まり)")]

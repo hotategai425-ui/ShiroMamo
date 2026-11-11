@@ -21,6 +21,8 @@ MonoBehaviour:
   attackRange: 1.5
   aggroRange: 10
   scale: 1
+  knockbackSpeed: 8
+  knockbackDuration: 0.2
   spawnWeight: 3
   firstWave: 1
   expReward: 10

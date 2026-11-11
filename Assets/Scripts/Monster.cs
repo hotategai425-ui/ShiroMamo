@@ -21,6 +21,8 @@ public class Monster : NetworkBehaviour
     private float dropChance;
     private float attackTimer;
     private bool dead;
+    private Vector3 knockbackDirection;
+    private float knockbackRemaining;
     private Color pendingTint = new Color(0f, 0f, 0f, 0f);
 
     private void Awake()
@@ -83,6 +85,13 @@ public class Monster : NetworkBehaviour
     {
         if (!IsServer || !IsSpawned || data == null || dead) return;
 
+        if (knockbackRemaining > 0f && data.knockbackSpeed > 0f && data.knockbackDuration > 0f)
+        {
+            MoveKnockback();
+            return;
+        }
+        knockbackRemaining = 0f;
+
         // 狙う相手を決める(近くの生きているプレイヤー優先 / いなければ砦)
         PlayerStats targetPlayer = null;
         float best = data.aggroRange;
@@ -138,11 +147,41 @@ public class Monster : NetworkBehaviour
     }
 
     // プレイヤーの攻撃から呼ばれる(ホストのみ有効)
-    public void TakeDamage(float amount)
+    public void TakeDamage(float amount, Vector3 hitDirection = default)
     {
         if (!IsServer || dead) return;
         hp -= amount;
-        if (hp <= 0f) Die();
+        if (hp <= 0f)
+        {
+            Die();
+            return;
+        }
+
+        Vector3 direction = Flat(hitDirection);
+        if (amount <= 0f || data == null || data.knockbackSpeed <= 0f || data.knockbackDuration <= 0f
+            || !(direction.sqrMagnitude > 0f) || float.IsInfinity(direction.sqrMagnitude)) return;
+
+        // 重ねて被弾した場合は、最後の攻撃方向へ押し戻す。速度は加算しない。
+        knockbackDirection = direction.normalized;
+        knockbackRemaining = data.knockbackDuration;
+    }
+
+    private void MoveKnockback()
+    {
+        float stepTime = Mathf.Min(Time.fixedDeltaTime, knockbackRemaining);
+        float speed = data.knockbackSpeed * Mathf.Clamp01(knockbackRemaining / data.knockbackDuration);
+        float distance = speed * stepTime;
+        var hits = rb.SweepTestAll(knockbackDirection, distance + 0.05f, QueryTriggerInteraction.Ignore);
+        foreach (var hit in hits)
+        {
+            // 床への平行な接触は除き、壁や砦など進路を遮る面で止める。
+            if (Vector3.Dot(knockbackDirection, hit.normal) < -0.01f)
+                distance = Mathf.Min(distance, Mathf.Max(0f, hit.distance - 0.05f));
+        }
+
+        Vector3 velocity = knockbackDirection * (distance / Time.fixedDeltaTime);
+        rb.linearVelocity = new Vector3(velocity.x, rb.linearVelocity.y, velocity.z);
+        knockbackRemaining = Mathf.Max(0f, knockbackRemaining - stepTime);
     }
 
     private void Die()

@@ -22,6 +22,11 @@ public class PlayerEquipment : NetworkBehaviour
     public ItemData Armor => ItemDatabase.Get(armorIndex.Value);
 
     public ItemData GetWeapon(bool leftHand) => leftHand ? LeftWeapon : RightWeapon;
+    public WeaponBlade GetWeaponBlade(bool leftHand)
+    {
+        GameObject visual = leftHand ? leftVisual : rightVisual;
+        return visual != null ? visual.GetComponent<WeaponBlade>() : null;
+    }
     public float TotalDefense => (LeftWeapon?.defenseBonus ?? 0f) + (RightWeapon?.defenseBonus ?? 0f) + (Armor?.defenseBonus ?? 0f);
     public float TotalMaxHp => (LeftWeapon?.maxHpBonus ?? 0f) + (RightWeapon?.maxHpBonus ?? 0f) + (Armor?.maxHpBonus ?? 0f);
 
@@ -146,8 +151,11 @@ public class PlayerEquipment : NetworkBehaviour
             ? new Vector3(side * 0.38f, -0.56f, 0.85f)
             : new Vector3(side * 0.65f, -0.45f, 0.32f);
         anchor.transform.localRotation = Quaternion.Euler(20f, 0f, -side * 12f);
-        anchor.transform.localScale = Vector3.one * (IsOwner ? 0.55f : 1f);
+        bool melee = weapon.attackType == WeaponAttackType.Melee;
+        anchor.transform.localScale = Vector3.one * (melee ? Mathf.Max(0.1f, weapon.meleeScale) : (IsOwner ? 0.55f : 1f));
         Instantiate(weapon.pickupVisualPrefab, anchor.transform, false);
+        if (melee)
+            anchor.AddComponent<WeaponBlade>().Initialize(this, side < 0f, weapon);
         return anchor;
     }
 

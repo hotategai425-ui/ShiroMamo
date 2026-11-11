@@ -16,6 +16,11 @@ MonoBehaviour:
   slot: 0
   rarity: 0
   pickupVisualPrefab: {fileID: 4649882311539152476, guid: 59e46ce43da976947959e67b21981d64, type: 3}
+  bladeBase: {x: 0, y: 0.2, z: 0}
+  bladeTip: {x: 0, y: 1.4, z: 0}
+  bladeRadius: 0.06
+  swingDuration: 0.3
+  meleeScale: 0.55
   attackBonus: 5
   defenseBonus: 0
   maxHpBonus: 0

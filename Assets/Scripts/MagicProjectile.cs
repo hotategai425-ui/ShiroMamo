@@ -57,7 +57,13 @@ public class MagicProjectile : NetworkBehaviour
     private void Impact(Collider other)
     {
         var monster = other.GetComponentInParent<Monster>();
-        if (monster != null && monster.IsSpawned) monster.TakeDamage(damage);
+        if (monster != null && monster.IsSpawned)
+        {
+            Vector3 direction = velocity;
+            direction.y = 0f;
+            if (direction.sqrMagnitude < 0.001f) direction = -monster.transform.forward;
+            monster.TakeDamage(damage, direction);
+        }
         NetworkObject.Despawn(true);
     }
 }
