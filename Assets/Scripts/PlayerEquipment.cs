@@ -101,6 +101,13 @@ public class PlayerEquipment : NetworkBehaviour
             for (int i = 0; i < weapons.Count; i++)
                 if (weapons[i].InstanceId == instance.InstanceId) return;
             weapons.Add(instance);
+            if (LeftWeapon == null && RightWeapon == null)
+            {
+                rightWeaponIndex.Value = weapons.Count - 1;
+                stats.ClampHp();
+                stats.Notify($"Equipped (Right): {instance.Rarity} {item.displayName}");
+                return;
+            }
             stats.Notify($"Collected: {instance.Rarity} {item.displayName} (I: Inventory)");
             return;
         }
