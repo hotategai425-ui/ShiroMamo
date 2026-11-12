@@ -1,37 +1,52 @@
 using Unity.Netcode;
 using UnityEngine;
 
-// 武器・防具のドロップ品。何のアイテムかは ItemDatabase の番号で同期する
+// ドロップ品の個体情報を同期し、そのまま拾った人へ渡す。
 public class ItemPickup : Pickup
 {
-    private NetworkVariable<int> itemIndex = new NetworkVariable<int>(-1);
+    private NetworkVariable<ItemInstance> item = new NetworkVariable<ItemInstance>();
     private int pendingIndex = -1;
+    private ItemInstance pendingInstance;
     private GameObject pickupVisual;
 
     // ホストが Spawn する前に呼ぶ
     public void Init(int index)
     {
         pendingIndex = index;
+        pendingInstance = default;
     }
+
+    public void Init(ItemInstance instance)
+    {
+        pendingInstance = instance;
+    }
+
+    public ItemInstance Instance => item.Value;
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
 
-        if (IsServer) itemIndex.Value = pendingIndex;
+        if (IsServer)
+        {
+            var instance = pendingInstance;
+            if (!instance.IsValid && ItemDatabase.Instance != null)
+                instance = ItemDatabase.Instance.CreateItem(ItemDatabase.Get(pendingIndex));
+            item.Value = instance;
+        }
 
         ApplyVisual();
-        itemIndex.OnValueChanged += OnIndexChanged;
+        item.OnValueChanged += OnItemChanged;
     }
 
     public override void OnNetworkDespawn()
     {
-        itemIndex.OnValueChanged -= OnIndexChanged;
+        item.OnValueChanged -= OnItemChanged;
         ClearVisual();
         base.OnNetworkDespawn();
     }
 
-    private void OnIndexChanged(int previous, int current)
+    private void OnItemChanged(ItemInstance previous, ItemInstance current)
     {
         ApplyVisual();
     }
@@ -41,24 +56,24 @@ public class ItemPickup : Pickup
         ClearVisual();
 
         var fallbackRenderer = GetComponent<Renderer>();
-        ItemData item = ItemDatabase.Get(itemIndex.Value);
-        bool hasCustomVisual = item != null && item.pickupVisualPrefab != null;
+        ItemData definition = item.Value.Definition;
+        bool hasCustomVisual = definition != null && definition.pickupVisualPrefab != null;
         if (fallbackRenderer != null) fallbackRenderer.enabled = !hasCustomVisual;
 
-        if (item == null) return;
+        if (definition == null) return;
         if (hasCustomVisual)
         {
             if (IsServer) transform.localScale = Vector3.one;
-            pickupVisual = Instantiate(item.pickupVisualPrefab, transform, false);
+            pickupVisual = Instantiate(definition.pickupVisualPrefab, transform, false);
             return;
         }
 
-        if (fallbackRenderer != null) fallbackRenderer.material.color = item.RarityColor;
+        if (fallbackRenderer != null) fallbackRenderer.material.color = ItemData.GetRarityColor(item.Value.Rarity);
 
         // 大きさはホストが決めて NetworkTransform で同期する
         if (IsServer)
         {
-            bool weapon = item.slot == ItemSlot.Weapon;
+            bool weapon = definition.slot == ItemSlot.Weapon;
             transform.localScale = weapon ? new Vector3(0.25f, 0.9f, 0.25f) : new Vector3(0.6f, 0.2f, 0.6f);
         }
     }
@@ -73,6 +88,6 @@ public class ItemPickup : Pickup
 
     protected override void OnCollectedServer(PlayerStats player)
     {
-        player.Equipment.ReceiveItem(ItemDatabase.Get(itemIndex.Value));
+        player.Equipment.ReceiveItem(item.Value);
     }
 }

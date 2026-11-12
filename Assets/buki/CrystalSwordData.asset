@@ -24,4 +24,23 @@ MonoBehaviour:
   attackBonus: 5
   defenseBonus: 0
   maxHpBonus: 0
+  weaponRarityRolls:
+  - rarity: 0
+    weight: 70
+    bonusCount: 1
+    attackBonusRange: {x: 1, y: 3}
+    defenseBonusRange: {x: 1, y: 2}
+    maxHpBonusRange: {x: 5, y: 15}
+  - rarity: 1
+    weight: 25
+    bonusCount: 2
+    attackBonusRange: {x: 2, y: 5}
+    defenseBonusRange: {x: 2, y: 4}
+    maxHpBonusRange: {x: 10, y: 25}
+  - rarity: 2
+    weight: 5
+    bonusCount: 3
+    attackBonusRange: {x: 4, y: 8}
+    defenseBonusRange: {x: 3, y: 6}
+    maxHpBonusRange: {x: 20, y: 40}
   salvageExp: 5

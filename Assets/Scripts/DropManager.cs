@@ -30,6 +30,8 @@ public class DropManager : MonoBehaviour
 
     public void SpawnItem(Vector3 pos, ItemData item)
     {
+        var network = NetworkManager.Singleton;
+        if (network == null || !network.IsServer) return;
         if (itemPickupPrefab == null)
         {
             Debug.LogError("DropManager: Item Pickup Prefab が未設定です");
@@ -44,7 +46,7 @@ public class DropManager : MonoBehaviour
         }
 
         ItemPickup pickup = Instantiate(itemPickupPrefab, Scatter(pos), Quaternion.identity);
-        pickup.Init(index);
+        pickup.Init(ItemDatabase.Instance.CreateItem(item));
         pickup.GetComponent<NetworkObject>().Spawn(true);
     }
 

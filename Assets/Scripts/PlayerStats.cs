@@ -65,7 +65,7 @@ public class PlayerStats : NetworkBehaviour
     public float BlinkCooldown => Mathf.Max(0f, blinkCooldown);
 
     public float GetAttack(bool leftHand) => baseAttack + attackPerLevel * (Level - 1)
-        + (equipment.GetWeapon(leftHand)?.attackBonus ?? 0f) + (equipment.Armor?.attackBonus ?? 0f);
+        + equipment.GetWeaponAttackBonus(leftHand) + (equipment.Armor?.attackBonus ?? 0f);
 
     private Vector3 SpawnPosition
     {

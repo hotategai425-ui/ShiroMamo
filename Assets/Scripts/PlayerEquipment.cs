@@ -4,7 +4,7 @@ using UnityEngine;
 // 武器は拾った順に保管する。左右の装備枠は持ち物の番号を参照する。
 public class PlayerEquipment : NetworkBehaviour
 {
-    private NetworkList<int> weapons;
+    private NetworkList<ItemInstance> weapons;
     private NetworkVariable<int> rightWeaponIndex = new NetworkVariable<int>(-1);
     private NetworkVariable<int> leftWeaponIndex = new NetworkVariable<int>(-1);
     private NetworkVariable<int> armorIndex = new NetworkVariable<int>(-1);
@@ -27,12 +27,14 @@ public class PlayerEquipment : NetworkBehaviour
         GameObject visual = leftHand ? leftVisual : rightVisual;
         return visual != null ? visual.GetComponent<WeaponBlade>() : null;
     }
-    public float TotalDefense => (LeftWeapon?.defenseBonus ?? 0f) + (RightWeapon?.defenseBonus ?? 0f) + (Armor?.defenseBonus ?? 0f);
-    public float TotalMaxHp => (LeftWeapon?.maxHpBonus ?? 0f) + (RightWeapon?.maxHpBonus ?? 0f) + (Armor?.maxHpBonus ?? 0f);
+    public ItemInstance GetWeaponInstance(bool leftHand) => GetInventoryInstance(GetEquippedWeaponIndex(leftHand));
+    public float GetWeaponAttackBonus(bool leftHand) => GetWeaponInstance(leftHand).AttackBonus;
+    public float TotalDefense => GetWeaponInstance(true).DefenseBonus + GetWeaponInstance(false).DefenseBonus + (Armor?.defenseBonus ?? 0f);
+    public float TotalMaxHp => GetWeaponInstance(true).MaxHpBonus + GetWeaponInstance(false).MaxHpBonus + (Armor?.maxHpBonus ?? 0f);
 
     private void Awake()
     {
-        weapons = new NetworkList<int>();
+        weapons = new NetworkList<ItemInstance>();
     }
 
     private void Update()
@@ -48,8 +50,13 @@ public class PlayerEquipment : NetworkBehaviour
 
     public ItemData GetInventoryWeapon(int index)
     {
-        if (index < 0 || index >= WeaponCount) return null;
-        return ItemDatabase.Get(weapons[index]);
+        return GetInventoryInstance(index).Definition;
+    }
+
+    public ItemInstance GetInventoryInstance(int index)
+    {
+        if (index < 0 || index >= WeaponCount) return default;
+        return weapons[index];
     }
 
     public void EquipWeapon(int inventoryIndex, bool leftHand)
@@ -76,16 +83,25 @@ public class PlayerEquipment : NetworkBehaviour
     // ホストだけが呼ぶ(ItemPickup から)
     public void ReceiveItem(ItemData item)
     {
-        if (!IsServer || item == null) return;
+        if (!IsServer || item == null || ItemDatabase.Instance == null) return;
+        ReceiveItem(ItemDatabase.Instance.CreateItem(item));
+    }
+
+    public void ReceiveItem(ItemInstance instance)
+    {
+        if (!IsServer || !instance.IsValid) return;
+        ItemData item = instance.Definition;
+        if (item == null) return;
 
         var stats = GetComponent<PlayerStats>();
-        int index = ItemDatabase.IndexOf(item);
-        if (index < 0) return;
+        int index = instance.DefinitionIndex;
 
         if (item.slot == ItemSlot.Weapon)
         {
-            weapons.Add(index);
-            stats.Notify($"Collected: {item.displayName} (I: Inventory)");
+            for (int i = 0; i < weapons.Count; i++)
+                if (weapons[i].InstanceId == instance.InstanceId) return;
+            weapons.Add(instance);
+            stats.Notify($"Collected: {instance.Rarity} {item.displayName} (I: Inventory)");
             return;
         }
 

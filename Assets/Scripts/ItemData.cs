@@ -1,8 +1,33 @@
+using System;
 using UnityEngine;
 
 public enum ItemSlot { Weapon, Armor }
 public enum ItemRarity { Common, Rare, Epic }
 public enum WeaponAttackType { Melee, Projectile }
+
+[Serializable]
+public class WeaponRarityRoll
+{
+    public ItemRarity rarity;
+    [Min(0f)] public float weight = 1f;
+    [Range(0, 3)] public int bonusCount = 1;
+    [Tooltip("武器の基本値に加算する範囲。両端が0の能力は抽選候補から外れます。")]
+    public Vector2 attackBonusRange;
+    public Vector2 defenseBonusRange;
+    public Vector2 maxHpBonusRange;
+
+    public float Weight => float.IsNaN(weight) || float.IsInfinity(weight) ? 0f : Mathf.Max(0f, weight);
+
+    public Vector2 GetRange(int bonus)
+    {
+        switch (bonus)
+        {
+            case 0: return attackBonusRange;
+            case 1: return defenseBonusRange;
+            default: return maxHpBonusRange;
+        }
+    }
+}
 
 // Project ウィンドウで Create > TD > Item Data から作成
 [CreateAssetMenu(menuName = "TD/Item Data", fileName = "ItemData")]
@@ -32,22 +57,24 @@ public class ItemData : ScriptableObject
     public float defenseBonus;
     public float maxHpBonus;
 
+    [Header("武器の個体抽選 (空なら上記の固定性能を使います)")]
+    public WeaponRarityRoll[] weaponRarityRolls;
+
     [Header("装備しなかった場合に経験値へ変換される量")]
     public float salvageExp = 5f;
 
     // 装備比較用の総合スコア
     public float Score => attackBonus * 2f + defenseBonus * 2f + maxHpBonus * 0.2f;
 
-    public Color RarityColor
+    public Color RarityColor => GetRarityColor(rarity);
+
+    public static Color GetRarityColor(ItemRarity rarity)
     {
-        get
+        switch (rarity)
         {
-            switch (rarity)
-            {
-                case ItemRarity.Rare: return new Color(0.3f, 0.5f, 1f);
-                case ItemRarity.Epic: return new Color(0.7f, 0.3f, 1f);
-                default: return new Color(0.85f, 0.85f, 0.85f);
-            }
+            case ItemRarity.Rare: return new Color(0.3f, 0.5f, 1f);
+            case ItemRarity.Epic: return new Color(0.7f, 0.3f, 1f);
+            default: return new Color(0.85f, 0.85f, 0.85f);
         }
     }
 }
