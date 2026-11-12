@@ -1,6 +1,6 @@
 # ShiroMamo 現行技術仕様
 
-更新日 2026-11-12 / 版 0.13
+更新日 2026-11-12 / 版 0.14
 
 個体差実装の基点コミットは`382e965`。過去の調査時点の未コミット情報は履歴に保管している。
 
@@ -194,7 +194,7 @@ CrystalSwordDataの調整用デモ値は、ローカル刃元(0, 0.2, 0)、刃�
 
 個体データはItemInstance、生成はItemDatabaseとDropManager、取得はItemPickup、所持・装備はPlayerEquipment、ステータス計算はPlayerStatsが担当する。
 
-UI担当への引き継ぎ事項として、現在のHUDの持ち物一覧は共通ItemDataのrarityやattackBonusなどを直接表示するため、個体のレア度と性能を正しく表示するには上記APIへの対応が必要。GetAttackを使うHUDの攻撃力表示は個体値を反映する。担当と対応状況は[引き継ぎ](HANDOFF.md)で管理する。
+HUDの持ち物一覧はItemInstanceのキャッシュを使い、個体のRarityとAttackBonus・DefenseBonus・MaxHpBonusを表示する。左右の装備欄も個体APIを使う。名前はDefinitionを参照し、戦闘HUDの攻撃力はGetAttackによる基礎値込みの最終値を表示する。コード対応済みで、実表示の受入確認は未完了。担当と対応状況は[引き継ぎ](HANDOFF.md)で管理する。
 
 個体は世界に落とす前にホストが生成し、ItemPickupのNetworkVariableから所持一覧へ同じ値を渡す。AttackBonus・DefenseBonus・MaxHpBonusは基本値を含む、その1本の補正の合計。取得・装備・解除・左右交換で再抽選せず、同じInstanceIdの重複取得を拒否する。既存の防具は固定値と従来処理を維持する。
 
@@ -218,7 +218,13 @@ UI担当への引き継ぎ事項として、現在のHUDの持ち物一覧は共
 
 近接の動作中はPCの武器姿勢を最大約50Hzでホストへ送り、受理された姿勢をRPCで他端末へ渡す。表示側は装備個体番号の不一致や古い攻撃IDを無視する。2人接続での動作表示と遅延は未確認。ホストの現在位置による判定とクライアント表示の差に対する遅延補償は未検証。
 
-HUDはウェーブ、残り時間、砦HP、自分のHP・レベル・経験値・防御・左右の武器と攻撃力、通知、勝敗を表示する。持ち物画面はHUD内のOnGUIで描画する。相棒のHPとレベルを表示するコードはあるが、シーンのteamTextは未割り当て。
+HUDはStart時に既存TMP欄を再配置し、相棒・左右武器・案内・照準・HPバーを補う。シーンのteamTextは未割り当てだが実行時に生成する。CanvasScalerを実行時だけ1920×1080基準、ScaleWithScreenSize、match 0.5にする。ProjectSettingsとシーン保存値は変更していない。
+
+配置は上中央にウェーブと砦HP・バー、右上に時間、左上に相棒、左下に自分の状態・HPバー、下部に左右武器、右下に持ち物案内、中央に照準、中央下に通知、勝敗時に中央へ結果を表示。ロビーとローカルプレイヤー不在時は戦闘HUDを隠し、持ち物表示中・死亡中・勝敗後は照準を隠す。
+
+戦闘欄、持ち物画面、既知の剣・本の名前、レア度、通知・勝敗をHUDで日本語化する。持ち物はOnGUIで描画する。既知英文通知の置換であり、汎用ローカライズ基盤ではない。接続メニューは今回のUI変更範囲に含まれない。
+
+日本語フォントは`Assets/Resources/Fonts/NotoSansJP.otf`。Noto Sans CJK JP Regular固定OTFをローカル名で保存し、SIL Open Font License 1.1を同ディレクトリのOFL.txtに同梱する。担当の取得元は[公式フォント](https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf)と[ライセンス](https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/LICENSE)。TMPはResourcesから実行時に動的フォントを生成し複数アトラスを有効にする。OnGUIは描画中だけ専用GUISkinに切り替える。固定OTFのUnityインポートと実表示は未確認。
 
 ## 8. PC VRの位置づけ
 
