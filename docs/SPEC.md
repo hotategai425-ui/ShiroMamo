@@ -1,6 +1,6 @@
 # ShiroMamo 現行技術仕様
 
-更新日 2026-11-12 / 版 0.12
+更新日 2026-11-12 / 版 0.13
 
 個体差実装の基点コミットは`382e965`。過去の調査時点の未コミット情報は履歴に保管している。
 
@@ -25,6 +25,8 @@
 `NetworkManager`が接続とプレイヤー生成を行う。`Menu`に`NetworkStartUI`があり、`GameSystems`にウェーブ、敵生成、ドロップ、アイテム一覧の管理がある。砦には`Fortress`と`NetworkObject`がある。Main Cameraはシーン直下から自分のプレイヤーを追従する。
 
 ビルド設定には`SampleScene`、`gameplay`の順で両方が有効登録されている。配布ビルドの起動先と、利用するBuild Profileの確認が必要。これは設定上の確認事項で、起動失敗を再現したという意味ではない。
+
+PC版の制作・UIの基準はFull HD（1920×1080・16:9）。ユーザーの指定を基礎作りから共有された。ProjectSettings/ProjectSettings.assetの現在値はdefaultScreenWidth=1024、defaultScreenHeight=768、resizableWindow=0。制作基準への設定反映は未着手で、ウィンドウ／フルスクリーン等のモードも未決定。担当と残作業はHANDOFF.mdのDISPLAY-01を参照する。
 
 ## 2. 1試合の進行
 
