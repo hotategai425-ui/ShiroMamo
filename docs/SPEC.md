@@ -1,6 +1,6 @@
 # ShiroMamo 現行技術仕様
 
-更新日 2026-11-12 / 版 0.16
+更新日 2026-11-12 / 版 0.17
 
 個体差実装の基点コミットは`382e965`。過去の調査時点の未コミット情報は履歴に保管している。
 
@@ -223,6 +223,10 @@ HUDはStart時に既存TMP欄を再配置し、相棒・左右武器・案内・
 配置は上中央にウェーブと砦HP・バー、右上に時間、左上に相棒、左下に自分の状態・HPバー、下部に左右武器、右下に持ち物案内、中央に照準、中央下に通知、勝敗時に中央へ結果を表示。ロビーとローカルプレイヤー不在時は戦闘HUDを隠し、持ち物表示中・死亡中・勝敗後は照準を隠す。
 
 戦闘欄、持ち物画面、既知の剣・本の名前、レア度、通知・勝敗をHUDで日本語化する。持ち物はOnGUIで描画する。既知英文通知の置換であり、汎用ローカライズ基盤ではない。接続メニューは今回のUI変更範囲に含まれない。
+
+時間欄は右上360×80、文字34、折り返しなし・Overflowで表示し、参照がなければ実行時に生成して有効化する。TimeRemainingを非負の分秒として表示する。ユーザーの時間欄消失報告に対し、日本語フォントの行高と省略設定を原因候補として対処したが、実画面での原因確定と修正確認は未実施。
+
+個体のレア度に応じ、コモンは純白、レアは青、エピックは紫で文字を表示する。対象は左右武器HUD、持ち物の武器名・レア度と装備欄、既知の拾得・左右自動装備通知。その他の通知は白へ戻す。青・紫は既存ItemData.GetRarityColorを使い、コモンはHUD側でColor.whiteを使う。左右自動装備通知の日本語化も対応済み。実画面での一致確認は未完了。
 
 日本語フォントは`Assets/Resources/Fonts/NotoSansJP.otf`。Noto Sans CJK JP Regular固定OTFをローカル名で保存し、SIL Open Font License 1.1を同ディレクトリのOFL.txtに同梱する。担当の取得元は[公式フォント](https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf)と[ライセンス](https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/LICENSE)。TMPはResourcesから実行時に動的フォントを生成し複数アトラスを有効にする。OnGUIは描画中だけ専用GUISkinに切り替える。固定OTFのUnityインポートと実表示は未確認。
 

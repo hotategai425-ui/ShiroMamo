@@ -27,6 +27,7 @@ public class HUD : MonoBehaviour
     private Font japaneseFont;
     private TMP_FontAsset japaneseTmpFont;
     private GUISkin japaneseInventorySkin;
+    private GUIStyle[] rarityLabelStyles;
 
     private void OnEnable() { GameLog.OnMessage += ShowMessage; }
     private void OnDisable() { GameLog.OnMessage -= ShowMessage; }
@@ -60,7 +61,7 @@ public class HUD : MonoBehaviour
             }
             if (timerText)
             {
-                int t = Mathf.CeilToInt(wm.TimeRemaining);
+                int t = Mathf.Max(0, Mathf.CeilToInt(wm.TimeRemaining));
                 timerText.text = wm.Phase == GamePhase.Lobby ? "" : $"残り {t / 60:00}:{t % 60:00}";
             }
             if (resultText)
@@ -83,6 +84,8 @@ public class HUD : MonoBehaviour
                 $"\n\n経験値 {Mathf.FloorToInt(p.Exp)}/{Mathf.CeilToInt(p.ExpToNext)}  防御力 {p.Defense:0.#}";
             if (leftLabel) leftLabel.text = WeaponLabel(p, true);
             if (rightLabel) rightLabel.text = WeaponLabel(p, false);
+            if (leftLabel) leftLabel.color = WeaponColor(p.Equipment.GetWeaponInstance(true));
+            if (rightLabel) rightLabel.color = WeaponColor(p.Equipment.GetWeaponInstance(false));
             if (hint) hint.text = $"I：持ち物（{p.Equipment.WeaponCount}）";
             SetBar(playerBar, p.CurrentHp, p.MaxHp);
         }
@@ -110,6 +113,12 @@ public class HUD : MonoBehaviour
     {
         if (!messageText) return;
         messageText.text = LocalizeMessage(msg);
+        messageText.color = Color.white;
+        if (msg != null && (msg.StartsWith("Collected: ") || msg.StartsWith("Equipped (Right): ") || msg.StartsWith("Equipped (Left): ")))
+        {
+            foreach (ItemRarity rarity in System.Enum.GetValues(typeof(ItemRarity)))
+                if (msg.Contains($": {rarity} ")) messageText.color = RarityColor(rarity);
+        }
         messageHideTime = Time.unscaledTime + messageDuration;
     }
 
@@ -181,7 +190,7 @@ public class HUD : MonoBehaviour
             if (equipment.GetEquippedWeaponIndex(true) == i) hand = " ［左手］";
             if (equipment.GetEquippedWeaponIndex(false) == i) hand = " ［右手］";
             GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label($"#{i + 1}  {ItemName(item)}  （{RarityLabel(instance.Rarity)}）{hand}");
+            GUILayout.Label($"#{i + 1}  {ItemName(item)}  （{RarityLabel(instance.Rarity)}）{hand}", RarityStyle(instance.Rarity));
             GUILayout.Label($"攻撃力補正 +{instance.AttackBonus:0.#}    防御力補正 +{instance.DefenseBonus:0.#}    最大HP補正 +{instance.MaxHpBonus:0.#}");
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("左手に装備（左クリック）"))
@@ -201,13 +210,13 @@ public class HUD : MonoBehaviour
         GUILayout.EndArea();
     }
 
-    private static void DrawEquippedHand(PlayerEquipment equipment, bool leftHand)
+    private void DrawEquippedHand(PlayerEquipment equipment, bool leftHand)
     {
         ItemInstance instance = equipment.GetWeaponInstance(leftHand);
         ItemData item = instance.Definition;
         string hand = leftHand ? "左手（左クリック）" : "右手（右クリック）";
         GUILayout.BeginHorizontal();
-        GUILayout.Label($"{hand}：{(item != null ? ItemName(item) : "装備なし")}");
+        GUILayout.Label($"{hand}：{(item != null ? ItemName(item) : "装備なし")}", RarityStyle(instance.Rarity));
         if (item != null && GUILayout.Button("外す", GUILayout.Width(80f)))
         {
             equipment.EquipWeapon(-1, leftHand);
@@ -215,7 +224,7 @@ public class HUD : MonoBehaviour
         }
         GUILayout.EndHorizontal();
         if (instance.IsValid && item != null)
-            GUILayout.Label($"{RarityLabel(instance.Rarity)}  攻撃力補正 +{instance.AttackBonus:0.#}  防御力補正 +{instance.DefenseBonus:0.#}  最大HP補正 +{instance.MaxHpBonus:0.#}");
+            GUILayout.Label($"{RarityLabel(instance.Rarity)}  攻撃力補正 +{instance.AttackBonus:0.#}  防御力補正 +{instance.DefenseBonus:0.#}  最大HP補正 +{instance.MaxHpBonus:0.#}", RarityStyle(instance.Rarity));
     }
 
     // 仮配置は実行時のみ生成し、シーン保存値・ゲーム設定には触れない。
@@ -253,7 +262,13 @@ public class HUD : MonoBehaviour
         crosshair = NewText("Crosshair");
         Place(waveText, .5f, 1, 0, -24, 600, 40, 28, TextAlignmentOptions.Center);
         Place(fortressText, .5f, 1, 0, -72, 600, 40, 26, TextAlignmentOptions.Center);
-        Place(timerText, 1, 1, -32, -24, 240, 44, 34, TextAlignmentOptions.Right);
+        // 日本語フォントの行高を確保。旧44pxでは行全体が省略される場合がある。
+        if (!timerText) timerText = NewText("Timer");
+        Place(timerText, 1, 1, -32, -24, 360, 80, 34, TextAlignmentOptions.TopRight);
+        timerText.textWrappingMode = TextWrappingModes.NoWrap;
+        timerText.overflowMode = TextOverflowModes.Overflow;
+        timerText.enabled = true;
+        timerText.gameObject.SetActive(true);
         Place(teamText, 0, 1, 32, -24, 480, 96, 24, TextAlignmentOptions.TopLeft);
         Place(playerText, 0, 0, 32, 156, 500, 116, 28, TextAlignmentOptions.TopLeft);
         Place(leftLabel, 0, 0, 32, 24, 620, 100, 26, TextAlignmentOptions.TopLeft);
@@ -337,6 +352,27 @@ public class HUD : MonoBehaviour
 
     private static string ItemName(ItemData item) => LocalizeWords(item.displayName);
 
+    private static Color RarityColor(ItemRarity rarity) => rarity == ItemRarity.Common
+        ? Color.white : ItemData.GetRarityColor(rarity);
+
+    private static Color WeaponColor(ItemInstance instance) => instance.IsValid
+        ? RarityColor(instance.Rarity) : Color.white;
+
+    private GUIStyle RarityStyle(ItemRarity rarity)
+    {
+        if (rarityLabelStyles == null)
+        {
+            rarityLabelStyles = new GUIStyle[3];
+            for (int i = 0; i < rarityLabelStyles.Length; i++)
+            {
+                var style = new GUIStyle(GUI.skin.label);
+                style.normal.textColor = RarityColor((ItemRarity)i);
+                rarityLabelStyles[i] = style;
+            }
+        }
+        return rarityLabelStyles[Mathf.Clamp((int)rarity, 0, rarityLabelStyles.Length - 1)];
+    }
+
     private static string RarityLabel(ItemRarity rarity)
     {
         switch (rarity)
@@ -362,6 +398,7 @@ public class HUD : MonoBehaviour
             .Replace("LEVEL UP! Lv ", "レベルアップ！ レベル ")
             .Replace("You were defeated... respawning", "戦闘不能になりました。復活を待っています")
             .Replace("Equipped (Armor): ", "防具を装備：").Replace("Salvaged ", "経験値に変換：")
+            .Replace("Equipped (Right): ", "右手に装備：").Replace("Equipped (Left): ", "左手に装備：")
             .Replace(" EXP)", " 経験値）").Replace(" (+", "（+");
     }
 
