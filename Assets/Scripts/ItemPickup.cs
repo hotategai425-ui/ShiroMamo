@@ -8,6 +8,11 @@ public class ItemPickup : Pickup
     private int pendingIndex = -1;
     private ItemInstance pendingInstance;
     private GameObject pickupVisual;
+    private bool excludeDropper;
+    private ulong droppedBy;
+    private bool droppedByPlayer;
+
+    protected override bool ClearOnWaveStart => !droppedByPlayer;
 
     // ホストが Spawn する前に呼ぶ
     public void Init(int index)
@@ -19,6 +24,24 @@ public class ItemPickup : Pickup
     public void Init(ItemInstance instance)
     {
         pendingInstance = instance;
+    }
+
+    public void InitDropped(ItemInstance instance, ulong ownerClientId)
+    {
+        Init(instance);
+        droppedBy = ownerClientId;
+        excludeDropper = true;
+        droppedByPlayer = true;
+    }
+
+    protected override bool CanCollect(PlayerStats player)
+    {
+        if (!excludeDropper || player.OwnerClientId != droppedBy) return true;
+        Vector3 delta = player.transform.position - transform.position;
+        delta.y = 0f;
+        if (delta.magnitude <= Mathf.Max(magnetRange, collectRadius)) return false;
+        excludeDropper = false;
+        return true;
     }
 
     public ItemInstance Instance => item.Value;

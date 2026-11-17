@@ -137,6 +137,19 @@ public class HUD : MonoBehaviour
         {
             japaneseInventorySkin = Instantiate(GUI.skin);
             japaneseInventorySkin.font = japaneseFont;
+            // 日本語フォントへ替えても、既定スキンの固定行高を引き継がない。
+            var label = japaneseInventorySkin.label;
+            label.fontSize = 18;
+            label.wordWrap = true;
+            label.fixedHeight = 0;
+            label.stretchHeight = false;
+            label.padding = new RectOffset(8, 8, 6, 6);
+            var button = japaneseInventorySkin.button;
+            button.fontSize = 18;
+            button.wordWrap = true;
+            button.fixedHeight = 0;
+            button.padding = new RectOffset(12, 12, 10, 10);
+            rarityLabelStyles = null;
         }
         var previousSkin = GUI.skin;
         try
@@ -159,27 +172,29 @@ public class HUD : MonoBehaviour
                 inventoryItems[i] = equipment.GetInventoryInstance(i);
         }
 
-        float width = Mathf.Min(680f, Screen.width - 20f);
-        float height = Mathf.Min(560f, Screen.height - 20f);
+        float width = Mathf.Min(900f, Screen.width - 24f);
+        float height = Mathf.Min(820f, Screen.height - 24f);
         var window = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
         GUI.Box(window, GUIContent.none);
         GUILayout.BeginArea(new Rect(window.x + 12f, window.y + 12f, width - 24f, height - 24f));
         GUILayout.BeginHorizontal();
-        GUILayout.Label($"持ち物（{equipment.WeaponCount}）     I / Esc：閉じる");
-        if (GUILayout.Button("閉じる", GUILayout.Width(70f)))
+        GUILayout.Label($"持ち物（{equipment.WeaponCount}）", GUILayout.MinWidth(0));
+        if (GUILayout.Button("閉じる", GUILayout.Width(100f), GUILayout.MinHeight(44f)))
         {
             equipment.CloseInventory();
             GUIUtility.ExitGUI();
         }
         GUILayout.EndHorizontal();
-        GUILayout.Label("左右の手に装備する武器を選んでください。開いている間も戦闘は進みます。");
+        // 装備欄・説明も含めてスクロールし、低い画面でも一覧が押し出されないようにする。
+        inventoryScroll = GUILayout.BeginScrollView(inventoryScroll, false, false);
+        GUILayout.BeginVertical(GUILayout.ExpandWidth(true), GUILayout.MinWidth(0));
+        GUILayout.Label("I / Esc：閉じる\n左右の手に装備する武器を選んでください。開いている間も戦闘は進みます。");
 
         DrawEquippedHand(equipment, leftHand: true);
         DrawEquippedHand(equipment, leftHand: false);
         GUILayout.Space(10f);
         if (inventoryItems.Length == 0) GUILayout.Label("武器がありません。敵を倒して落とした武器を拾いましょう。");
 
-        inventoryScroll = GUILayout.BeginScrollView(inventoryScroll);
         for (int i = 0; i < inventoryItems.Length; i++)
         {
             ItemInstance instance = inventoryItems[i];
@@ -192,20 +207,28 @@ public class HUD : MonoBehaviour
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label($"#{i + 1}  {ItemName(item)}  （{RarityLabel(instance.Rarity)}）{hand}", RarityStyle(instance.Rarity));
             GUILayout.Label($"攻撃力補正 +{instance.AttackBonus:0.#}    防御力補正 +{instance.DefenseBonus:0.#}    最大HP補正 +{instance.MaxHpBonus:0.#}");
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("左手に装備（左クリック）"))
+            // 狭い画面では操作を縦に並べる。クリックとの対応は上の装備欄に表示。
+            bool stackButtons = width < 560f;
+            if (!stackButtons) GUILayout.BeginHorizontal();
+            if (GUILayout.Button("左手に装備", GUILayout.MinHeight(44f)))
             {
-                equipment.EquipWeapon(i, leftHand: true);
+                equipment.EquipWeapon(instance.InstanceId, leftHand: true);
                 GUIUtility.ExitGUI();
             }
-            if (GUILayout.Button("右手に装備（右クリック）"))
+            if (GUILayout.Button("右手に装備", GUILayout.MinHeight(44f)))
             {
-                equipment.EquipWeapon(i, leftHand: false);
+                equipment.EquipWeapon(instance.InstanceId, leftHand: false);
                 GUIUtility.ExitGUI();
             }
-            GUILayout.EndHorizontal();
+            if (GUILayout.Button("落とす", GUILayout.MinHeight(44f)))
+            {
+                equipment.DropWeapon(instance.InstanceId);
+                GUIUtility.ExitGUI();
+            }
+            if (!stackButtons) GUILayout.EndHorizontal();
             GUILayout.EndVertical();
         }
+        GUILayout.EndVertical();
         GUILayout.EndScrollView();
         GUILayout.EndArea();
     }
@@ -216,8 +239,8 @@ public class HUD : MonoBehaviour
         ItemData item = instance.Definition;
         string hand = leftHand ? "左手（左クリック）" : "右手（右クリック）";
         GUILayout.BeginHorizontal();
-        GUILayout.Label($"{hand}：{(item != null ? ItemName(item) : "装備なし")}", RarityStyle(instance.Rarity));
-        if (item != null && GUILayout.Button("外す", GUILayout.Width(80f)))
+        GUILayout.Label($"{hand}：{(item != null ? ItemName(item) : "装備なし")}", RarityStyle(instance.Rarity), GUILayout.MinWidth(0));
+        if (item != null && GUILayout.Button("外す", GUILayout.Width(80f), GUILayout.MinHeight(44f)))
         {
             equipment.EquipWeapon(-1, leftHand);
             GUIUtility.ExitGUI();

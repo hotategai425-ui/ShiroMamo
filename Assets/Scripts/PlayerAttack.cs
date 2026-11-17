@@ -147,6 +147,14 @@ public class PlayerAttack : NetworkBehaviour
         if (IsSpawned && IsOwner) CancelMeleeRpc(leftHand, attackId);
     }
 
+    // 持ち物削除で番号が詰まった後に、削除前の振りを受理しない。
+    public void CancelEquipmentAttacks()
+    {
+        if (!IsServer) return;
+        leftSwing.Weapon = null;
+        rightSwing.Weapon = null;
+    }
+
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
     private void CancelMeleeRpc(bool leftHand, int attackId)
     {

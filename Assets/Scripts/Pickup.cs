@@ -36,7 +36,7 @@ public abstract class Pickup : NetworkBehaviour
         float nearestDist = float.MaxValue;
         foreach (var p in PlayerStats.All)
         {
-            if (p == null || p.IsDead) continue;
+            if (p == null || !p.IsSpawned || !p.IsServer || p.IsDead || !CanCollect(p)) continue;
             Vector3 d = p.transform.position - transform.position;
             d.y = 0f;
             float dist = d.magnitude;
@@ -65,12 +65,16 @@ public abstract class Pickup : NetworkBehaviour
     // ホスト側で呼ばれる。拾ったプレイヤーに効果を与える
     protected abstract void OnCollectedServer(PlayerStats player);
 
+    protected virtual bool CanCollect(PlayerStats player) => true;
+
+    protected virtual bool ClearOnWaveStart => true;
+
     // 回収フェーズ後の拾い忘れを一掃(ホストのみ)
     public static void ClearAll()
     {
         foreach (var p in All.ToArray())
         {
-            if (p != null && p.IsSpawned && p.IsServer) p.NetworkObject.Despawn(true);
+            if (p != null && p.IsSpawned && p.IsServer && p.ClearOnWaveStart) p.NetworkObject.Despawn(true);
         }
     }
 }

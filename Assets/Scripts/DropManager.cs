@@ -50,6 +50,19 @@ public class DropManager : MonoBehaviour
         pickup.GetComponent<NetworkObject>().Spawn(true);
     }
 
+    // 所持品は再抽選せず、生成できた場合だけ呼び出し元が持ち物から取り除く。
+    public bool TryDropItem(Vector3 pos, ItemInstance instance, ulong droppedBy)
+    {
+        var network = NetworkManager.Singleton;
+        if (network == null || !network.IsServer || itemPickupPrefab == null
+            || !instance.IsValid || instance.Definition == null) return false;
+
+        ItemPickup pickup = Instantiate(itemPickupPrefab, pos, Quaternion.identity);
+        pickup.InitDropped(instance, droppedBy);
+        pickup.GetComponent<NetworkObject>().Spawn(true);
+        return pickup.IsSpawned;
+    }
+
     private static Vector3 Scatter(Vector3 pos)
     {
         Vector2 o = Random.insideUnitCircle * 0.6f;
