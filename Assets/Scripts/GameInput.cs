@@ -65,6 +65,18 @@ public static class GameInput
         }
     }
 
+    public static bool CreatorModePressed
+    {
+        get
+        {
+#if ENABLE_INPUT_SYSTEM
+            return Keyboard.current != null && Keyboard.current.f2Key.wasPressedThisFrame;
+#else
+            return Input.GetKeyDown(KeyCode.F2);
+#endif
+        }
+    }
+
     public static bool InventoryPressed
     {
         get

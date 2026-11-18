@@ -15,6 +15,7 @@ public class WeaponBlade : MonoBehaviour
     private int equippedIndex;
     private bool swinging;
     private float startedAt;
+    private float swingDuration;
     private float nextSampleTime;
     private bool remotePoseActive;
     private Vector3 remotePosition;
@@ -47,6 +48,7 @@ public class WeaponBlade : MonoBehaviour
         attackId = id;
         equippedIndex = equipment.GetEquippedWeaponIndex(leftHand);
         startedAt = Time.time;
+        swingDuration = stats.GetSwingDuration(weapon);
         nextSampleTime = 0f;
         swinging = true;
     }
@@ -85,13 +87,13 @@ public class WeaponBlade : MonoBehaviour
         }
 
         if (!swinging) return;
-        if (stats.IsDead || equipment.IsInventoryOpen || equipment.GetEquippedWeaponIndex(leftHand) != equippedIndex)
+        if (stats.IsDead || equipment.IsControlBlocked || equipment.GetEquippedWeaponIndex(leftHand) != equippedIndex)
         {
             CancelSwing();
             return;
         }
 
-        float progress = Mathf.Clamp01((Time.time - startedAt) / Mathf.Max(0.1f, weapon.swingDuration));
+        float progress = Mathf.Clamp01((Time.time - startedAt) / swingDuration);
         float side = leftHand ? -1f : 1f;
         Quaternion windup = Quaternion.Euler(55f, 0f, -side * 65f);
         Quaternion finish = Quaternion.Euler(100f, 0f, side * 65f);

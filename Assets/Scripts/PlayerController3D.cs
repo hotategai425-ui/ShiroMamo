@@ -47,7 +47,7 @@ public class PlayerController3D : NetworkBehaviour
     private void Update()
     {
         if (!IsSpawned || !IsOwner) return;
-        if (stats.IsDead || stats.Equipment.IsInventoryOpen)
+        if (stats.IsDead || stats.Equipment.IsControlBlocked)
         {
             jumpRequested = false;
             blinkRequested = false;
@@ -69,7 +69,7 @@ public class PlayerController3D : NetworkBehaviour
 
         Vector3 vel = rb.linearVelocity;
 
-        if (stats.IsDead || stats.Equipment.IsInventoryOpen)
+        if (stats.IsDead || stats.Equipment.IsControlBlocked)
         {
             jumpRequested = false;
             blinkRequested = false;

@@ -38,6 +38,8 @@ public class WaveManager : NetworkBehaviour
     private NetworkVariable<int> wave = new NetworkVariable<int>(1);
     // フェーズ終了時刻(サーバー時刻)。毎フレーム同期せず、各自が残り時間を計算する
     private NetworkVariable<double> phaseEndTime = new NetworkVariable<double>(0.0);
+    private NetworkVariable<double> levelUpPauseStartedAt = new NetworkVariable<double>(-1.0);
+    public bool IsLevelUpPaused => levelUpPauseStartedAt.Value >= 0;
 
     public int CurrentWave => wave.Value;
     public GamePhase Phase => phase.Value;
@@ -51,7 +53,8 @@ public class WaveManager : NetworkBehaviour
         {
             if (!IsSpawned) return 0f;
             if (Phase != GamePhase.Combat && Phase != GamePhase.Collect) return 0f;
-            return Mathf.Max(0f, (float)(phaseEndTime.Value - NetworkManager.ServerTime.Time));
+            double now = IsLevelUpPaused ? levelUpPauseStartedAt.Value : NetworkManager.ServerTime.Time;
+            return Mathf.Max(0f, (float)(phaseEndTime.Value - now));
         }
     }
 
@@ -66,14 +69,14 @@ public class WaveManager : NetworkBehaviour
     // ホストがロビーで「Start Game」を押したときに呼ばれる
     public void StartGame()
     {
-        if (!IsServer || Phase != GamePhase.Lobby) return;
+        if (!IsServer || Phase != GamePhase.Lobby || IsLevelUpPaused) return;
         wave.Value = 1;
         SetPhase(GamePhase.Combat);
     }
 
     private void Update()
     {
-        if (!IsServer || !IsSpawned) return;
+        if (!IsServer || !IsSpawned || IsLevelUpPaused) return;
 
         if (Phase == GamePhase.Lobby) return;
 
@@ -107,6 +110,19 @@ public class WaveManager : NetworkBehaviour
                 wave.Value = CurrentWave + 1;
                 SetPhase(GamePhase.Combat);
             }
+        }
+    }
+
+    public void SetLevelUpPaused(bool paused)
+    {
+        if (!IsServer || !IsSpawned || paused == IsLevelUpPaused) return;
+        double now = NetworkManager.ServerTime.Time;
+        if (paused) levelUpPauseStartedAt.Value = now;
+        else
+        {
+            if (Phase == GamePhase.Combat || Phase == GamePhase.Collect)
+                phaseEndTime.Value += now - levelUpPauseStartedAt.Value;
+            levelUpPauseStartedAt.Value = -1;
         }
     }
 

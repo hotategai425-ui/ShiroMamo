@@ -38,7 +38,7 @@ public class PlayerAttack : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsSpawned || !IsOwner || !CanAttack() || stats.Equipment.IsInventoryOpen) return;
+        if (!IsSpawned || !IsOwner || !CanAttack() || stats.Equipment.IsControlBlocked) return;
 
         bool leftPressed = GameInput.HandPressed(leftHand: true) && stats.Equipment.LeftWeapon != null;
         bool rightPressed = GameInput.HandPressed(leftHand: false);
@@ -67,16 +67,16 @@ public class PlayerAttack : NetworkBehaviour
     // 追跡入力はこの戻り値を使ってSubmitMeleePoseへ姿勢を送れる。
     public int BeginAttack(bool leftHand, Vector3 aim)
     {
-        if (!IsSpawned || !IsOwner || !CanAttack() || stats.Equipment.IsInventoryOpen) return 0;
+        if (!IsSpawned || !IsOwner || !CanAttack() || stats.Equipment.IsControlBlocked) return 0;
         if (!(aim.sqrMagnitude > 0f) || float.IsInfinity(aim.sqrMagnitude)) return 0;
         ItemData weapon = stats.Equipment.GetWeapon(leftHand);
         if (leftHand && weapon == null) return 0;
         bool melee = weapon != null && weapon.attackType == WeaponAttackType.Melee;
 
-        double now = NetworkManager.ServerTime.Time;
+        double now = Time.timeAsDouble;
         ref double next = ref (leftHand ? ref localNextLeftAttack : ref localNextRightAttack);
         if (now < next) return 0;
-        next = now + (melee ? Mathf.Max(attackInterval, weapon.swingDuration) : attackInterval);
+        next = now + stats.GetAttackInterval(attackInterval, weapon);
         int id = ++nextAttackId;
         AttackRpc(leftHand, aim, id);
         return id;
@@ -89,7 +89,7 @@ public class PlayerAttack : NetworkBehaviour
         // まだ武器がない状態から敵を倒せるよう、右手は素手でも攻撃できる。
         if (leftHand && stats.Equipment.LeftWeapon == null) return;
 
-        double now = NetworkManager.ServerTime.Time;
+        double now = Time.timeAsDouble;
         ref double nextAttack = ref (leftHand ? ref nextLeftAttack : ref nextRightAttack);
         if (now < nextAttack) return;
 
@@ -102,14 +102,14 @@ public class PlayerAttack : NetworkBehaviour
         aim.Normalize();
 
         bool melee = weapon != null && !projectile;
-        nextAttack = now + (melee ? Mathf.Max(attackInterval, weapon.swingDuration) : attackInterval);
+        nextAttack = now + stats.GetAttackInterval(attackInterval, weapon);
         if (projectile)
         {
             // 球を壁の向こうに出さないよう、プレイヤーの横から発射する。
             Vector3 origin = transform.position + Vector3.up * 0.6f
                 + transform.right * (leftHand ? -0.35f : 0.35f);
             MagicProjectile shot = Instantiate(weapon.projectilePrefab, origin, Quaternion.LookRotation(aim));
-            shot.Init(aim, weapon.projectileSpeed, weapon.projectileLifetime, stats.GetAttack(leftHand));
+            shot.Init(aim, weapon.projectileSpeed, weapon.projectileLifetime, stats.GetAttackDamage(leftHand));
             shot.GetComponent<NetworkObject>().Spawn(true);
             return;
         }
@@ -121,24 +121,24 @@ public class PlayerAttack : NetworkBehaviour
             swing.Id = attackId;
             swing.EquippedIndex = stats.Equipment.GetEquippedWeaponIndex(leftHand);
             swing.Weapon = weapon;
-            swing.ExpiresAt = now + Mathf.Max(0.1f, weapon.swingDuration) + 0.35f;
+            swing.ExpiresAt = now + stats.GetSwingDuration(weapon) + 0.35f;
             swing.Progress = -1f;
             swing.HasPose = false;
             swing.Consumed = false;
-            swing.Damage = stats.GetAttack(leftHand);
+            swing.Damage = stats.GetAttackDamage(leftHand);
             return;
         }
 
         // 素手は武器モデルを持たないため、正面の距離判定を使う。
         Monster target = FindTarget(aim);
         if (target != null)
-            target.TakeDamage(stats.GetAttack(leftHand), target.transform.position - transform.position);
+            target.TakeDamage(stats.GetAttackDamage(leftHand), target.transform.position - transform.position);
     }
 
     // 将来の追跡入力は、武器の実際のワールド姿勢をこの入口へ渡す。
     public void SubmitMeleePose(bool leftHand, int attackId, Vector3 position, Quaternion rotation, float progress)
     {
-        if (!IsSpawned || !IsOwner || !CanAttack() || stats.Equipment.IsInventoryOpen) return;
+        if (!IsSpawned || !IsOwner || !CanAttack() || stats.Equipment.IsControlBlocked) return;
         MeleePoseRpc(leftHand, attackId, position, rotation, progress);
     }
 
@@ -171,7 +171,7 @@ public class PlayerAttack : NetworkBehaviour
     {
         if (!CanAttack()) return;
         SwingState swing = leftHand ? leftSwing : rightSwing;
-        if (swing.Weapon == null || swing.Id != attackId || NetworkManager.ServerTime.Time > swing.ExpiresAt) return;
+        if (swing.Weapon == null || swing.Id != attackId || Time.timeAsDouble > swing.ExpiresAt) return;
         if (stats.Equipment.GetEquippedWeaponIndex(leftHand) != swing.EquippedIndex
             || stats.Equipment.GetWeapon(leftHand) != swing.Weapon) return;
         if (!(progress >= 0f && progress <= 1f) || progress < swing.Progress) return;
@@ -219,7 +219,7 @@ public class PlayerAttack : NetworkBehaviour
     private bool CanAttack()
     {
         var wave = WaveManager.Instance;
-        return !stats.IsDead && wave != null && wave.Phase == GamePhase.Combat;
+        return !stats.IsDead && !stats.IsTeamLevelUpPaused && wave != null && wave.Phase == GamePhase.Combat;
     }
 
     private Monster FindTarget(Vector3 aim)

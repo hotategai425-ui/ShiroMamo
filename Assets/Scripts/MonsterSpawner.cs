@@ -19,6 +19,8 @@ public class MonsterSpawner : MonoBehaviour
     {
         var nm = NetworkManager.Singleton;
         if (nm == null || !nm.IsServer) return;
+        if (TeamProgression.IsPaused(nm)) return;
+        if (CreatorMode.AreMonstersPaused(nm)) return;
 
         var wm = WaveManager.Instance;
         if (wm == null || wm.Phase != GamePhase.Combat) return;

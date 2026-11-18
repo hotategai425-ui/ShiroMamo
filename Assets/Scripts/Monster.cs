@@ -21,6 +21,10 @@ public class Monster : NetworkBehaviour
     private float dropChance;
     private float attackTimer;
     private bool dead;
+    private bool creatorPaused;
+    private bool wasKinematic;
+    private Vector3 pausedVelocity;
+    private Vector3 pausedAngularVelocity;
     private Vector3 knockbackDirection;
     private float knockbackRemaining;
     private Color pendingTint = new Color(0f, 0f, 0f, 0f);
@@ -53,6 +57,7 @@ public class Monster : NetworkBehaviour
         if (IsServer)
         {
             tint.Value = pendingTint;
+            SetCreatorPaused(CreatorMode.AreMonstersPaused(NetworkManager));
         }
         else
         {
@@ -84,6 +89,7 @@ public class Monster : NetworkBehaviour
     private void FixedUpdate()
     {
         if (!IsServer || !IsSpawned || data == null || dead) return;
+        if (creatorPaused) return;
 
         if (knockbackRemaining > 0f && data.knockbackSpeed > 0f && data.knockbackDuration > 0f)
         {
@@ -146,7 +152,30 @@ public class Monster : NetworkBehaviour
         }
     }
 
-    // プレイヤーの攻撃から呼ばれる(ホストのみ有効)
+    // 制作者モードの停止はホストの物理にも適用する。
+    public void SetCreatorPaused(bool paused)
+    {
+        if (!IsServer || !IsSpawned || creatorPaused == paused) return;
+        creatorPaused = paused;
+        if (paused)
+        {
+            wasKinematic = rb.isKinematic;
+            pausedVelocity = rb.linearVelocity;
+            pausedAngularVelocity = rb.angularVelocity;
+            rb.isKinematic = true;
+        }
+        else
+        {
+            rb.isKinematic = wasKinematic;
+            if (!wasKinematic)
+            {
+                rb.linearVelocity = pausedVelocity;
+                rb.angularVelocity = pausedAngularVelocity;
+            }
+        }
+    }
+
+    // 停止中もダメージと撃破を受け付ける。
     public void TakeDamage(float amount, Vector3 hitDirection = default)
     {
         if (!IsServer || dead) return;

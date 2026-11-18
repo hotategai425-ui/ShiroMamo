@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// 経験値オーブ
+// 誰が拾っても、チームの共有経験値へ1回だけ加算する。
 public class ExpOrb : Pickup
 {
     [SerializeField] private Color color = new Color(0.3f, 0.9f, 1f);

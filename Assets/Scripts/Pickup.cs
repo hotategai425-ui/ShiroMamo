@@ -28,6 +28,7 @@ public abstract class Pickup : NetworkBehaviour
     protected virtual void Update()
     {
         if (!IsServer || !IsSpawned || collected) return;
+        if (TeamProgression.IsPaused(NetworkManager)) return;
 
         transform.Rotate(0f, spinSpeed * Time.deltaTime, 0f, Space.World);
 

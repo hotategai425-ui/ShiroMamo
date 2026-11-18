@@ -35,7 +35,7 @@ public struct ItemInstance : INetworkSerializable, IEquatable<ItemInstance>
     public override bool Equals(object obj) => obj is ItemInstance other && Equals(other);
     public override int GetHashCode() => HashCode.Combine(InstanceId, DefinitionIndex, Rarity, AttackBonus, DefenseBonus, MaxHpBonus);
 
-    internal static ItemInstance Create(ulong id, int definitionIndex, ItemData definition)
+    internal static ItemInstance Create(ulong id, int definitionIndex, ItemData definition, WeaponRarityRoll rarityOverride = null)
     {
         var item = new ItemInstance
         {
@@ -48,7 +48,7 @@ public struct ItemInstance : INetworkSerializable, IEquatable<ItemInstance>
         };
         if (definition.slot != ItemSlot.Weapon) return item;
 
-        WeaponRarityRoll setting = PickRarity(definition.weaponRarityRolls);
+        WeaponRarityRoll setting = rarityOverride ?? PickRarity(definition.weaponRarityRolls);
         if (setting == null) return item;
         item.Rarity = setting.rarity;
 

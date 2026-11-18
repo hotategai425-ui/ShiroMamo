@@ -16,6 +16,8 @@ public class PlayerEquipment : NetworkBehaviour
     private Transform visualParent;
 
     public bool IsInventoryOpen { get; private set; }
+    public bool IsControlBlocked => IsInventoryOpen || CreatorMode.IsOpenFor(this)
+        || GetComponent<PlayerStats>().IsTeamLevelUpPaused;
     public int WeaponCount => weapons == null ? 0 : weapons.Count;
     public ItemData RightWeapon => GetInventoryWeapon(rightWeaponIndex.Value);
     public ItemData LeftWeapon => GetInventoryWeapon(leftWeaponIndex.Value);
@@ -40,7 +42,8 @@ public class PlayerEquipment : NetworkBehaviour
     private void Update()
     {
         if (!IsSpawned || !IsOwner) return;
-        if (GameInput.InventoryPressed) IsInventoryOpen = !IsInventoryOpen;
+        if (GetComponent<PlayerStats>().IsTeamLevelUpPaused) { CloseInventory(); return; }
+        if (GameInput.InventoryPressed && !CreatorMode.IsOpenFor(this)) IsInventoryOpen = !IsInventoryOpen;
         if (GameInput.CancelPressed || GetComponent<PlayerStats>().IsDead) CloseInventory();
     }
 
@@ -75,6 +78,7 @@ public class PlayerEquipment : NetworkBehaviour
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
     private void EquipWeaponRpc(ulong instanceId, bool leftHand)
     {
+        if (GetComponent<PlayerStats>().IsTeamLevelUpPaused) return;
         int inventoryIndex = instanceId == 0 ? -1 : FindWeapon(instanceId);
         if (instanceId != 0 && inventoryIndex < 0) return;
 
@@ -105,7 +109,7 @@ public class PlayerEquipment : NetworkBehaviour
     {
         var stats = GetComponent<PlayerStats>();
         int index = FindWeapon(instanceId);
-        if (index < 0 || stats.IsDead || DropManager.Instance == null) return;
+        if (index < 0 || stats.IsDead || stats.IsTeamLevelUpPaused || DropManager.Instance == null) return;
         if (WaveManager.Instance != null && WaveManager.Instance.IsFinished) return;
         // 足元へ置き、壁の向こうへの生成を避ける。
         Vector3 position = transform.position - Vector3.up * 0.5f;
