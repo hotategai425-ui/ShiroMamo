@@ -1,4 +1,5 @@
 using System.Text;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -27,7 +28,9 @@ public class HUD : MonoBehaviour
     private Font japaneseFont;
     private TMP_FontAsset japaneseTmpFont;
     private GUISkin japaneseInventorySkin;
-    private GUIStyle[] rarityLabelStyles;
+    private ulong selectedInventoryId;
+    private enum InventorySort { Rarity = 2, Attack = 3, Defense = 4, Hp = 5 }
+    private InventorySort inventorySort = InventorySort.Rarity;
 
     private void OnEnable() { GameLog.OnMessage += ShowMessage; }
     private void OnDisable() { GameLog.OnMessage -= ShowMessage; }
@@ -125,129 +128,226 @@ public class HUD : MonoBehaviour
     private void OnGUI()
     {
         var player = PlayerStats.Local;
-        if (player == null) return;
-
-        var equipment = player.Equipment;
-        if (!equipment.IsInventoryOpen)
-        {
-            return;
-        }
-        // GUI.skinをこの描画中だけ差し替え、接続メニュー等へ影響させない。
-        if (japaneseFont != null && japaneseInventorySkin == null)
+        if (player == null || !player.Equipment.IsInventoryOpen) return;
+        if (japaneseInventorySkin == null)
         {
             japaneseInventorySkin = Instantiate(GUI.skin);
-            japaneseInventorySkin.font = japaneseFont;
-            // 日本語フォントへ替えても、既定スキンの固定行高を引き継がない。
-            var label = japaneseInventorySkin.label;
-            label.fontSize = 18;
-            label.wordWrap = true;
-            label.fixedHeight = 0;
-            label.stretchHeight = false;
-            label.padding = new RectOffset(8, 8, 6, 6);
-            var button = japaneseInventorySkin.button;
-            button.fontSize = 18;
-            button.wordWrap = true;
-            button.fixedHeight = 0;
-            button.padding = new RectOffset(12, 12, 10, 10);
-            rarityLabelStyles = null;
+            if (japaneseFont) japaneseInventorySkin.font = japaneseFont;
+            japaneseInventorySkin.label.fontSize = 20;
+            japaneseInventorySkin.label.wordWrap = true;
+            japaneseInventorySkin.label.fixedHeight = 0;
+            japaneseInventorySkin.label.alignment = TextAnchor.MiddleLeft;
+            japaneseInventorySkin.label.padding = new RectOffset(8, 8, 4, 4);
+            japaneseInventorySkin.label.normal.textColor = Color.white;
+            japaneseInventorySkin.button.fontSize = 20;
+            japaneseInventorySkin.button.wordWrap = false;
         }
         var previousSkin = GUI.skin;
+        var previousMatrix = GUI.matrix;
+        var previousColor = GUI.color;
+        int previousDepth = GUI.depth;
         try
         {
-            if (japaneseInventorySkin != null) GUI.skin = japaneseInventorySkin;
-            DrawInventory(equipment);
+            GUI.skin = japaneseInventorySkin;
+            GUI.color = Color.white;
+            GUI.depth = -100;
+            // 小さい表示でも列配置を維持し、画面内へ全体を縮小する。
+            float scale = Mathf.Min(1f, Screen.width / 1000f, Screen.height / 650f);
+            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
+            DrawInventory(player.Equipment, Screen.width / scale, Screen.height / scale);
         }
-        finally { GUI.skin = previousSkin; }
+        finally
+        {
+            GUI.skin = previousSkin;
+            GUI.matrix = previousMatrix;
+            GUI.color = previousColor;
+            GUI.depth = previousDepth;
+        }
     }
 
-    private void DrawInventory(PlayerEquipment equipment)
+    private void DrawInventory(PlayerEquipment equipment, float screenWidth, float screenHeight)
     {
-
-        // Layout と Repaint の間に拾得が起きても、同じ行数で描画する。
+        // 表示順だけを変更。同値ではレア度、その後は元の所持順を保つ。
         if (Event.current.type == EventType.Layout || inventoryItems == null || inventoryOwner != equipment)
         {
+            if (inventoryOwner != equipment)
+            {
+                selectedInventoryId = 0;
+                inventoryScroll = Vector2.zero;
+                inventorySort = InventorySort.Rarity;
+            }
             inventoryOwner = equipment;
-            inventoryItems = new ItemInstance[equipment.WeaponCount];
-            for (int i = 0; i < inventoryItems.Length; i++)
-                inventoryItems[i] = equipment.GetInventoryInstance(i);
+            inventoryItems = Enumerable.Range(0, equipment.WeaponCount)
+                .Select(equipment.GetInventoryInstance).Where(item => item.IsValid && item.Definition != null)
+                .OrderByDescending(item => InventorySortValue(item, inventorySort))
+                .ThenByDescending(item => item.Rarity).ToArray();
+            // 削除時は他の武器を勝手に選択しない。移動した同一個体は選択を維持する。
+            if (!inventoryItems.Any(item => item.InstanceId == selectedInventoryId)) selectedInventoryId = 0;
         }
-
-        float width = Mathf.Min(900f, Screen.width - 24f);
-        float height = Mathf.Min(820f, Screen.height - 24f);
-        var window = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
-        GUI.Box(window, GUIContent.none);
-        GUILayout.BeginArea(new Rect(window.x + 12f, window.y + 12f, width - 24f, height - 24f));
-        GUILayout.BeginHorizontal();
-        GUILayout.Label($"持ち物（{equipment.WeaponCount}）", GUILayout.MinWidth(0));
-        if (GUILayout.Button("閉じる", GUILayout.Width(100f), GUILayout.MinHeight(44f)))
+        float width = Mathf.Min(1120, screenWidth - 40);
+        float height = Mathf.Min(820, screenHeight - 40);
+        var window = new Rect((screenWidth - width) / 2, (screenHeight - height) / 2, width, height);
+        FillRect(window, new Color(.075f, .085f, .105f, 1));
+        GUI.BeginGroup(window);
+        try
         {
-            equipment.CloseInventory();
-            GUIUtility.ExitGUI();
+            float innerWidth = width - 40;
+            GUI.Label(new Rect(20, 12, innerWidth - 130, 46), $"持ち物  {inventoryItems.Length}個");
+            if (GUI.Button(new Rect(width - 130, 14, 110, 42), "閉じる"))
+            {
+                equipment.CloseInventory();
+                GUIUtility.ExitGUI();
+            }
+            DrawEquippedHand(equipment, true, new Rect(20, 66, innerWidth, 46));
+            DrawEquippedHand(equipment, false, new Rect(20, 116, innerWidth, 46));
+            GUI.Label(new Rect(20, 170, innerWidth, 36), "見出しをクリック：高い順 ／ 数値は武器の補正値 ／ 白枠：装備中　背景：選択中");
+
+            float tableWidth = innerWidth - 20; // 縦スクロールバー用の幅を常に確保。
+            DrawInventoryCells(new Rect(20, 210, tableWidth, 42), default, "装備", true);
+            var viewport = new Rect(20, 254, innerWidth, height - 430);
+            inventoryScroll = GUI.BeginScrollView(viewport, inventoryScroll,
+                new Rect(0, 0, tableWidth, Mathf.Max(viewport.height, inventoryItems.Length * 64)), false, true);
+            try
+            {
+                ulong leftId = equipment.GetWeaponInstance(true).InstanceId;
+                ulong rightId = equipment.GetWeaponInstance(false).InstanceId;
+                for (int i = 0; i < inventoryItems.Length; i++)
+                {
+                    var instance = inventoryItems[i];
+                    var row = new Rect(0, i * 64, tableWidth, 60);
+                    bool equipped = instance.InstanceId == leftId || instance.InstanceId == rightId;
+                    FillRect(row, instance.InstanceId == selectedInventoryId
+                        ? new Color(.22f, .30f, .40f) : new Color(.12f, .135f, .16f));
+                    if (equipped) DrawWhiteBorder(row);
+                    string hand = instance.InstanceId == leftId ? "左手" : instance.InstanceId == rightId ? "右手" : "";
+                    // 透明の行ボタン。数値・レア度は後から描き、押下色と独立させる。
+                    if (GUI.Button(row, GUIContent.none, GUIStyle.none)) selectedInventoryId = instance.InstanceId;
+                    DrawInventoryCells(row, instance, hand, false);
+                }
+                if (inventoryItems.Length == 0)
+                    GUI.Label(new Rect(8, 12, tableWidth - 16, 80), "武器がありません。敵を倒して武器を拾いましょう。");
+            }
+            finally { GUI.EndScrollView(); }
+
+            var selected = inventoryItems.FirstOrDefault(item => item.InstanceId == selectedInventoryId);
+            float footerY = height - 164;
+            FillRect(new Rect(20, footerY, innerWidth, 2), new Color(.32f, .35f, .4f));
+            GUI.Label(new Rect(20, footerY + 8, innerWidth, 44), selected.IsValid
+                ? $"選択中：{ItemName(selected.Definition)} ［{RarityLabel(selected.Rarity)}］"
+                : "一覧の武器をクリックして選択してください。");
+            bool previousEnabled = GUI.enabled;
+            try
+            {
+                GUI.enabled = previousEnabled && selected.IsValid;
+                if (GUI.Button(new Rect(20, footerY + 58, 200, 46), "左手に装備"))
+                {
+                    equipment.EquipWeapon(selected.InstanceId, true);
+                    GUIUtility.ExitGUI();
+                }
+                if (GUI.Button(new Rect(232, footerY + 58, 200, 46), "右手に装備"))
+                {
+                    equipment.EquipWeapon(selected.InstanceId, false);
+                    GUIUtility.ExitGUI();
+                }
+                if (GUI.Button(new Rect(width - 200, footerY + 58, 180, 46), "落とす"))
+                {
+                    equipment.DropWeapon(selected.InstanceId);
+                    GUIUtility.ExitGUI();
+                }
+            }
+            finally { GUI.enabled = previousEnabled; }
+            GUI.Label(new Rect(20, height - 48, innerWidth - 220, 38), "開いている間も戦闘は進みます。");
+            GUI.Label(new Rect(width - 240, height - 48, 220, 38), "I / Esc：閉じる");
         }
-        GUILayout.EndHorizontal();
-        // 装備欄・説明も含めてスクロールし、低い画面でも一覧が押し出されないようにする。
-        inventoryScroll = GUILayout.BeginScrollView(inventoryScroll, false, false);
-        GUILayout.BeginVertical(GUILayout.ExpandWidth(true), GUILayout.MinWidth(0));
-        GUILayout.Label("I / Esc：閉じる\n左右の手に装備する武器を選んでください。開いている間も戦闘は進みます。");
-
-        DrawEquippedHand(equipment, leftHand: true);
-        DrawEquippedHand(equipment, leftHand: false);
-        GUILayout.Space(10f);
-        if (inventoryItems.Length == 0) GUILayout.Label("武器がありません。敵を倒して落とした武器を拾いましょう。");
-
-        for (int i = 0; i < inventoryItems.Length; i++)
-        {
-            ItemInstance instance = inventoryItems[i];
-            ItemData item = instance.Definition;
-            if (!instance.IsValid || item == null) continue;
-
-            string hand = "";
-            if (equipment.GetEquippedWeaponIndex(true) == i) hand = " ［左手］";
-            if (equipment.GetEquippedWeaponIndex(false) == i) hand = " ［右手］";
-            GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label($"#{i + 1}  {ItemName(item)}  （{RarityLabel(instance.Rarity)}）{hand}", RarityStyle(instance.Rarity));
-            GUILayout.Label($"攻撃力補正 +{instance.AttackBonus:0.#}    防御力補正 +{instance.DefenseBonus:0.#}    最大HP補正 +{instance.MaxHpBonus:0.#}");
-            // 狭い画面では操作を縦に並べる。クリックとの対応は上の装備欄に表示。
-            bool stackButtons = width < 560f;
-            if (!stackButtons) GUILayout.BeginHorizontal();
-            if (GUILayout.Button("左手に装備", GUILayout.MinHeight(44f)))
-            {
-                equipment.EquipWeapon(instance.InstanceId, leftHand: true);
-                GUIUtility.ExitGUI();
-            }
-            if (GUILayout.Button("右手に装備", GUILayout.MinHeight(44f)))
-            {
-                equipment.EquipWeapon(instance.InstanceId, leftHand: false);
-                GUIUtility.ExitGUI();
-            }
-            if (GUILayout.Button("落とす", GUILayout.MinHeight(44f)))
-            {
-                equipment.DropWeapon(instance.InstanceId);
-                GUIUtility.ExitGUI();
-            }
-            if (!stackButtons) GUILayout.EndHorizontal();
-            GUILayout.EndVertical();
-        }
-        GUILayout.EndVertical();
-        GUILayout.EndScrollView();
-        GUILayout.EndArea();
+        finally { GUI.EndGroup(); }
     }
 
-    private void DrawEquippedHand(PlayerEquipment equipment, bool leftHand)
+    private void DrawInventoryCells(Rect row, ItemInstance instance, string hand, bool header)
     {
-        ItemInstance instance = equipment.GetWeaponInstance(leftHand);
-        ItemData item = instance.Definition;
-        string hand = leftHand ? "左手（左クリック）" : "右手（右クリック）";
-        GUILayout.BeginHorizontal();
-        GUILayout.Label($"{hand}：{(item != null ? ItemName(item) : "装備なし")}", RarityStyle(instance.Rarity), GUILayout.MinWidth(0));
-        if (item != null && GUILayout.Button("外す", GUILayout.Width(80f), GUILayout.MinHeight(44f)))
+        float[] widths = { 80, row.width - 480, 100, 100, 100, 100 };
+        string[] values = header
+            ? new[] { hand, "武器名", "レア度", "攻撃力", "防御力", "HP" }
+            : new[] { hand, ItemName(instance.Definition), RarityLabel(instance.Rarity),
+                $"+{instance.AttackBonus:0.#}", $"+{instance.DefenseBonus:0.#}", $"+{instance.MaxHpBonus:0.#}" };
+        float x = row.x;
+        for (int column = 0; column < widths.Length; column++)
         {
-            equipment.EquipWeapon(-1, leftHand);
-            GUIUtility.ExitGUI();
+            var style = new GUIStyle(GUI.skin.label);
+            style.alignment = column >= 3 ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+            SetLabelColor(style, !header && (column == 1 || column == 2) ? RarityColor(instance.Rarity) : Color.white);
+            var cell = new Rect(x, row.y, widths[column], row.height);
+            if (header && column >= 2)
+            {
+                var buttonStyle = new GUIStyle(GUI.skin.button);
+                buttonStyle.fontSize = 18;
+                buttonStyle.padding = new RectOffset(2, 2, 4, 4);
+                string title = values[column] + ((int)inventorySort == column ? " ↓" : "");
+                if (GUI.Button(new Rect(cell.x + 2, cell.y, cell.width - 4, cell.height), title, buttonStyle))
+                {
+                    inventorySort = (InventorySort)column;
+                    inventoryScroll = Vector2.zero;
+                    // 次のLayoutで所持順から並べ直す。選択は個体IDのまま維持。
+                    GUIUtility.ExitGUI();
+                }
+            }
+            else GUI.Label(cell, values[column], style);
+            x += widths[column];
         }
-        GUILayout.EndHorizontal();
-        if (instance.IsValid && item != null)
-            GUILayout.Label($"{RarityLabel(instance.Rarity)}  攻撃力補正 +{instance.AttackBonus:0.#}  防御力補正 +{instance.DefenseBonus:0.#}  最大HP補正 +{instance.MaxHpBonus:0.#}", RarityStyle(instance.Rarity));
+    }
+
+    private static float InventorySortValue(ItemInstance item, InventorySort sort)
+    {
+        switch (sort)
+        {
+            case InventorySort.Attack: return item.AttackBonus;
+            case InventorySort.Defense: return item.DefenseBonus;
+            case InventorySort.Hp: return item.MaxHpBonus;
+            default: return (int)item.Rarity;
+        }
+    }
+
+    private void DrawEquippedHand(PlayerEquipment equipment, bool leftHand, Rect area)
+    {
+        var instance = equipment.GetWeaponInstance(leftHand);
+        var definition = instance.Definition;
+        string hand = leftHand ? "左手" : "右手";
+        var style = new GUIStyle(GUI.skin.label);
+        SetLabelColor(style, WeaponColor(instance));
+        GUI.Label(new Rect(area.x, area.y, area.width - 160, area.height),
+            $"{hand}：{(definition != null ? ItemName(definition) + " ［" + RarityLabel(instance.Rarity) + "］" : "装備なし")}", style);
+        bool previousEnabled = GUI.enabled;
+        try
+        {
+            GUI.enabled = previousEnabled && instance.IsValid;
+            if (GUI.Button(new Rect(area.xMax - 150, area.y, 150, area.height), hand + "を外す"))
+            {
+                equipment.EquipWeapon(-1, leftHand);
+                GUIUtility.ExitGUI();
+            }
+        }
+        finally { GUI.enabled = previousEnabled; }
+    }
+
+    private static void SetLabelColor(GUIStyle style, Color color)
+    {
+        style.normal.textColor = style.hover.textColor = style.active.textColor = style.focused.textColor = color;
+        style.onNormal.textColor = style.onHover.textColor = style.onActive.textColor = style.onFocused.textColor = color;
+    }
+
+    private static void FillRect(Rect rect, Color color)
+    {
+        Color previous = GUI.color;
+        GUI.color = color;
+        GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        GUI.color = previous;
+    }
+
+    private static void DrawWhiteBorder(Rect rect)
+    {
+        FillRect(new Rect(rect.x, rect.y, rect.width, 2), Color.white);
+        FillRect(new Rect(rect.x, rect.yMax - 2, rect.width, 2), Color.white);
+        FillRect(new Rect(rect.x, rect.y, 2, rect.height), Color.white);
+        FillRect(new Rect(rect.xMax - 2, rect.y, 2, rect.height), Color.white);
     }
 
     // 仮配置は実行時のみ生成し、シーン保存値・ゲーム設定には触れない。
@@ -380,21 +480,6 @@ public class HUD : MonoBehaviour
 
     private static Color WeaponColor(ItemInstance instance) => instance.IsValid
         ? RarityColor(instance.Rarity) : Color.white;
-
-    private GUIStyle RarityStyle(ItemRarity rarity)
-    {
-        if (rarityLabelStyles == null)
-        {
-            rarityLabelStyles = new GUIStyle[3];
-            for (int i = 0; i < rarityLabelStyles.Length; i++)
-            {
-                var style = new GUIStyle(GUI.skin.label);
-                style.normal.textColor = RarityColor((ItemRarity)i);
-                rarityLabelStyles[i] = style;
-            }
-        }
-        return rarityLabelStyles[Mathf.Clamp((int)rarity, 0, rarityLabelStyles.Length - 1)];
-    }
 
     private static string RarityLabel(ItemRarity rarity)
     {
