@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -31,6 +32,8 @@ public class PlayerAttack : NetworkBehaviour
         public AttackDamageResult Damage;
         public bool HasPose;
         public bool Consumed;
+        public readonly HashSet<ulong> HitEnemies = new HashSet<ulong>();
+        public readonly List<Monster> Contacts = new List<Monster>();
     }
 
     private void Awake()
@@ -130,6 +133,7 @@ public class PlayerAttack : NetworkBehaviour
             swing.Progress = -1f;
             swing.HasPose = false;
             swing.Consumed = false;
+            swing.HitEnemies.Clear();
             swing.Damage = stats.RollAttackDamage(leftHand);
             return;
         }
@@ -200,10 +204,17 @@ public class PlayerAttack : NetworkBehaviour
         }
         if (!swing.Consumed && progress >= 0.2f && progress <= 0.7f)
         {
-            swing.Consumed = MeleeHitResolver.Sweep(swing.Weapon, swing.Position, swing.Rotation,
-                position, rotation, stats, out Monster target);
-            if (target != null)
+            swing.Contacts.Clear();
+            swing.Consumed = MeleeHitResolver.SweepAll(swing.Weapon, swing.Position, swing.Rotation,
+                position, rotation, stats, swing.Contacts);
+            // 接触収集とダメージ適用を分離し、致死Despawnで物理検索や反復を壊さない。
+            foreach (Monster target in swing.Contacts)
+            {
+                if (target == null || !target.IsSpawned || !target.IsServer
+                    || target.NetworkManager != NetworkManager
+                    || !swing.HitEnemies.Add(target.NetworkObjectId)) continue;
                 target.TakeDamage(swing.Damage, stats, target.transform.position - transform.position);
+            }
         }
         swing.Position = position;
         swing.Rotation = rotation;
