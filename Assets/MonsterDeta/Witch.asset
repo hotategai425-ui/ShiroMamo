@@ -32,5 +32,7 @@ MonoBehaviour:
     weight: 1
   - item: {fileID: 11400000, guid: 7729741056864e86ba72821dad8acbbe, type: 2}
     weight: 1
+  - item: {fileID: 11400000, guid: 17b5b4421f9888c459b224987f42b2a1, type: 2}
+    weight: 1
   applyTint: 1
   tintColor: {r: 0.3189869, g: 0, b: 1, a: 1}

@@ -317,8 +317,7 @@ public class HUD : MonoBehaviour
     private static string PlayerStatusLabel(PlayerStats player) =>
         $"レベル {player.Level}  HP {Mathf.CeilToInt(player.CurrentHp)}/{Mathf.CeilToInt(player.MaxHp)}" +
         (player.IsDead ? " （戦闘不能）" : "") +
-        $"\n\n経験値 {Mathf.FloorToInt(player.Exp)}/{Mathf.CeilToInt(player.ExpToNext)}" +
-        $"\n本人攻撃力 {player.AttackPower:0.##}　合成軽減率 {FormatReduction(player.DamageReductionRate)}";
+        $"\n\n経験値 {Mathf.FloorToInt(player.Exp)}/{Mathf.CeilToInt(player.ExpToNext)}";
 
     private void DrawEquippedHand(PlayerEquipment equipment, bool leftHand, Rect area)
     {
@@ -483,9 +482,10 @@ public class HUD : MonoBehaviour
         var definition = instance.Definition;
         string input = leftHand ? "左クリック" : "右クリック";
         if (!instance.IsValid || definition == null)
-            return leftHand ? $"{input}：装備なし\n攻撃なし" : $"{input}：素手\n×1 ／ 会心前攻撃力 {player.GetAttack(false):0.##}";
+            return leftHand ? $"{input}：装備なし\n攻撃なし" : $"{input}：素手\n攻撃力 {player.GetAttack(false):0.##}";
         return $"{input}：{ItemName(definition)} ［{RarityLabel(instance.Rarity)}］\n" +
-            $"{FormatMultiplier(instance.AttackMultiplier)} ／ 会心前攻撃力 {player.GetAttack(leftHand):0.##}";
+            (definition.IsShield ? $"防御力 {FormatReduction(DisplayedReduction(instance))}"
+                : $"攻撃力 {player.GetAttack(leftHand):0.##}");
     }
 
     private static string ItemName(ItemData item) => LocalizeWords(item.displayName);

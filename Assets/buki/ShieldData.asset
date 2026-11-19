@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acf33280e6c5a1d41806e1d6899c04ff, type: 3}
+  m_Name: ShieldData
+  m_EditorClassIdentifier: 
+  displayName: "\u76FE"
+  slot: 0
+  rarity: 0
+  pickupVisualPrefab: {fileID: 8060071165993648997, guid: e19a756d338a2e444a7bd98342ff05e3, type: 3}
+  attackType: 2
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 20
+  projectileLifetime: 2
+  bladeBase: {x: 0, y: 0, z: 0}
+  bladeTip: {x: 0, y: 0, z: 0}
+  bladeRadius: 0.5
+  swingDuration: 0.3
+  meleeScale: 0.55
+  heldPositionOffset: {x: 0, y: 0.25, z: -0.05}
+  shieldThrustDistance: 0.65
+  attackMultiplier: 0.2
+  damageReductionRate: 0.1
+  maxHpBonus: 0
+  weaponRarityRolls:
+  - rarity: 0
+    weight: 70
+    attackMultiplierRange: {x: 0.15, y: 0.25}
+    maxHpBonusRange: {x: 5, y: 15}
+    damageReductionRate: 0.1
+  - rarity: 1
+    weight: 25
+    attackMultiplierRange: {x: 0.2, y: 0.3}
+    maxHpBonusRange: {x: 10, y: 25}
+    damageReductionRate: 0.2
+  - rarity: 2
+    weight: 5
+    attackMultiplierRange: {x: 0.25, y: 0.35}
+    maxHpBonusRange: {x: 20, y: 40}
+    damageReductionRate: 0.3
+  salvageExp: 5
