@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b5b7f4e99874f4a923530e25ffacc59, type: 3}
+  m_Name: DamageNumberSettings
+  m_EditorClassIdentifier: 
+  worldOffset: {x: 0, y: 0.15, z: 0}
+  lifetime: 0.9
+  riseDistance: 0.65
+  fadeStartRatio: 0.3
+  fontSize: 36
+  criticalScale: 1.25
+  normalColor: {r: 1, g: 1, b: 1, a: 1}
+  criticalColor: {r: 1, g: 1, b: 0, a: 1}
+  textArea: {x: 240, y: 90}
+  horizontalSpacing: 40
+  horizontalSlots: 5
+  maxVisibleNumbers: 96
+  environmentMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  occlusionPadding: 0.02

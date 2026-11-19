@@ -20,26 +20,23 @@ MonoBehaviour:
   projectilePrefab: {fileID: 4901875289376559608, guid: dc855f2201714a8fa19b02b2d211e0fa, type: 3}
   projectileSpeed: 20
   projectileLifetime: 2
-  attackBonus: 5
-  defenseBonus: 0
+  attackMultiplier: 1.5
+  damageReductionRate: 0
   maxHpBonus: 0
   weaponRarityRolls:
   - rarity: 0
     weight: 70
-    bonusCount: 1
-    attackBonusRange: {x: 1, y: 3}
-    defenseBonusRange: {x: 1, y: 2}
+    attackMultiplierRange: {x: 1.2, y: 1.5}
     maxHpBonusRange: {x: 5, y: 15}
+    damageReductionRate: 0
   - rarity: 1
     weight: 25
-    bonusCount: 2
-    attackBonusRange: {x: 2, y: 5}
-    defenseBonusRange: {x: 2, y: 4}
+    attackMultiplierRange: {x: 1.5, y: 1.8}
     maxHpBonusRange: {x: 10, y: 25}
+    damageReductionRate: 0
   - rarity: 2
     weight: 5
-    bonusCount: 3
-    attackBonusRange: {x: 4, y: 8}
-    defenseBonusRange: {x: 3, y: 6}
+    attackMultiplierRange: {x: 1.8, y: 2.2}
     maxHpBonusRange: {x: 20, y: 40}
+    damageReductionRate: 0
   salvageExp: 5

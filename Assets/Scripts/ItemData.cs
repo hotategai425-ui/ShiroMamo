@@ -3,30 +3,20 @@ using UnityEngine;
 
 public enum ItemSlot { Weapon, Armor }
 public enum ItemRarity { Common, Rare, Epic }
-public enum WeaponAttackType { Melee, Projectile }
+public enum WeaponAttackType { Melee = 0, Projectile = 1, ShieldBash = 2 }
 
 [Serializable]
 public class WeaponRarityRoll
 {
     public ItemRarity rarity;
     [Min(0f)] public float weight = 1f;
-    [Range(0, 3)] public int bonusCount = 1;
-    [Tooltip("武器の基本値に加算する範囲。両端が0の能力は抽選候補から外れます。")]
-    public Vector2 attackBonusRange;
-    public Vector2 defenseBonusRange;
+    [Tooltip("本人の攻撃力へ掛ける倍率の範囲。旧加算値とは別の設定です。")]
+    public Vector2 attackMultiplierRange = Vector2.one;
     public Vector2 maxHpBonusRange;
+    [Range(0f, 1f)] public float damageReductionRate;
 
     public float Weight => float.IsNaN(weight) || float.IsInfinity(weight) ? 0f : Mathf.Max(0f, weight);
 
-    public Vector2 GetRange(int bonus)
-    {
-        switch (bonus)
-        {
-            case 0: return attackBonusRange;
-            case 1: return defenseBonusRange;
-            default: return maxHpBonusRange;
-        }
-    }
 }
 
 // Project ウィンドウで Create > TD > Item Data から作成
@@ -41,6 +31,8 @@ public class ItemData : ScriptableObject
 
     [Header("武器の攻撃方式")]
     public WeaponAttackType attackType = WeaponAttackType.Melee;
+    public bool IsShield => attackType == WeaponAttackType.ShieldBash;
+    public bool IsMeleeAttack => attackType == WeaponAttackType.Melee || IsShield;
     public MagicProjectile projectilePrefab;
     [Min(0.1f)] public float projectileSpeed = 20f;
     [Min(0.1f)] public float projectileLifetime = 2f;
@@ -51,10 +43,13 @@ public class ItemData : ScriptableObject
     [Min(0.01f)] public float bladeRadius = 0.06f;
     [Min(0.1f)] public float swingDuration = 0.3f;
     [Min(0.1f)] public float meleeScale = 0.55f;
+    [Tooltip("本人のカメラ基準の持ち位置へ加算する調整値。")]
+    public Vector3 heldPositionOffset;
+    [Min(0f)] public float shieldThrustDistance = 0.65f;
 
-    [Header("装備ボーナス")]
-    public float attackBonus;
-    public float defenseBonus;
+    [Header("攻撃倍率・装備補正")]
+    [Min(0f)] public float attackMultiplier = 1f;
+    [Range(0f, 1f)] public float damageReductionRate;
     public float maxHpBonus;
 
     [Header("武器の個体抽選 (空なら上記の固定性能を使います)")]
@@ -64,7 +59,7 @@ public class ItemData : ScriptableObject
     public float salvageExp = 5f;
 
     // 装備比較用の総合スコア
-    public float Score => attackBonus * 2f + defenseBonus * 2f + maxHpBonus * 0.2f;
+    public float Score => maxHpBonus * 0.2f;
 
     public Color RarityColor => GetRarityColor(rarity);
 

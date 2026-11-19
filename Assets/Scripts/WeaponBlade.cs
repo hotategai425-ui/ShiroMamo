@@ -97,13 +97,17 @@ public class WeaponBlade : MonoBehaviour
         float side = leftHand ? -1f : 1f;
         Quaternion windup = Quaternion.Euler(55f, 0f, -side * 65f);
         Quaternion finish = Quaternion.Euler(100f, 0f, side * 65f);
-        if (progress < 0.2f)
+        if (weapon.IsShield)
+        {
+            transform.localRotation = restRotation;
+        }
+        else if (progress < 0.2f)
             transform.localRotation = Quaternion.Slerp(restRotation, windup, Mathf.SmoothStep(0f, 1f, progress / 0.2f));
         else if (progress < 0.7f)
             transform.localRotation = Quaternion.Slerp(windup, finish, Mathf.SmoothStep(0f, 1f, (progress - 0.2f) / 0.5f));
         else
             transform.localRotation = Quaternion.Slerp(finish, restRotation, Mathf.SmoothStep(0f, 1f, (progress - 0.7f) / 0.3f));
-        transform.localPosition = restPosition + Vector3.forward * (0.12f * Mathf.Sin(progress * Mathf.PI));
+        transform.localPosition = restPosition + Vector3.forward * ((weapon.IsShield ? weapon.shieldThrustDistance : 0.12f) * Mathf.Sin(progress * Mathf.PI));
 
         if (Time.time >= nextSampleTime || progress >= 1f)
         {

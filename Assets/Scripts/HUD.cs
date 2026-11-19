@@ -1,5 +1,6 @@
 using System.Text;
 using System.Linq;
+using System.Globalization;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -29,7 +30,7 @@ public class HUD : MonoBehaviour
     private TMP_FontAsset japaneseTmpFont;
     private GUISkin japaneseInventorySkin;
     private ulong selectedInventoryId;
-    private enum InventorySort { Rarity = 2, Attack = 3, Defense = 4, Hp = 5 }
+    private enum InventorySort { Rarity = 2, AttackMultiplier = 3, DamageReduction = 4, Hp = 5 }
     private InventorySort inventorySort = InventorySort.Rarity;
 
     private void OnEnable() { GameLog.OnMessage += ShowMessage; }
@@ -81,10 +82,7 @@ public class HUD : MonoBehaviour
 
         if (p != null && playerText)
         {
-            playerText.text =
-                $"レベル {p.Level}  HP {Mathf.CeilToInt(p.CurrentHp)}/{Mathf.CeilToInt(p.MaxHp)}" +
-                (p.IsDead ? " （戦闘不能）" : "") +
-                $"\n\n経験値 {Mathf.FloorToInt(p.Exp)}/{Mathf.CeilToInt(p.ExpToNext)}  防御力 {p.Defense:0.#}";
+            playerText.text = PlayerStatusLabel(p);
             if (leftLabel) leftLabel.text = WeaponLabel(p, true);
             if (rightLabel) rightLabel.text = WeaponLabel(p, false);
             if (leftLabel) leftLabel.color = WeaponColor(p.Equipment.GetWeaponInstance(true));
@@ -169,21 +167,7 @@ public class HUD : MonoBehaviour
     {
         // 表示順だけを変更。同値ではレア度、その後は元の所持順を保つ。
         if (Event.current.type == EventType.Layout || inventoryItems == null || inventoryOwner != equipment)
-        {
-            if (inventoryOwner != equipment)
-            {
-                selectedInventoryId = 0;
-                inventoryScroll = Vector2.zero;
-                inventorySort = InventorySort.Rarity;
-            }
-            inventoryOwner = equipment;
-            inventoryItems = Enumerable.Range(0, equipment.WeaponCount)
-                .Select(equipment.GetInventoryInstance).Where(item => item.IsValid && item.Definition != null)
-                .OrderByDescending(item => InventorySortValue(item, inventorySort))
-                .ThenByDescending(item => item.Rarity).ToArray();
-            // 削除時は他の武器を勝手に選択しない。移動した同一個体は選択を維持する。
-            if (!inventoryItems.Any(item => item.InstanceId == selectedInventoryId)) selectedInventoryId = 0;
-        }
+            RefreshInventorySnapshot(equipment);
         float width = Mathf.Min(1120, screenWidth - 40);
         float height = Mathf.Min(820, screenHeight - 40);
         var window = new Rect((screenWidth - width) / 2, (screenHeight - height) / 2, width, height);
@@ -200,7 +184,7 @@ public class HUD : MonoBehaviour
             }
             DrawEquippedHand(equipment, true, new Rect(20, 66, innerWidth, 46));
             DrawEquippedHand(equipment, false, new Rect(20, 116, innerWidth, 46));
-            GUI.Label(new Rect(20, 170, innerWidth, 36), "見出しをクリック：高い順 ／ 数値は武器の補正値 ／ 白枠：装備中　背景：選択中");
+            GUI.Label(new Rect(20, 170, innerWidth, 36), "見出しで降順 ／ 攻撃は本人×倍率・HPは補正 ／ 白枠：装備中・背景：選択中");
 
             float tableWidth = innerWidth - 20; // 縦スクロールバー用の幅を常に確保。
             DrawInventoryCells(new Rect(20, 210, tableWidth, 42), default, "装備", true);
@@ -262,13 +246,27 @@ public class HUD : MonoBehaviour
         finally { GUI.EndGroup(); }
     }
 
+    private void RefreshInventorySnapshot(PlayerEquipment equipment)
+    {
+        if (inventoryOwner != equipment)
+        {
+            selectedInventoryId = 0;
+            inventoryScroll = Vector2.zero;
+            inventorySort = InventorySort.Rarity;
+        }
+        inventoryOwner = equipment;
+        inventoryItems = Enumerable.Range(0, equipment.WeaponCount)
+            .Select(equipment.GetInventoryInstance).Where(item => item.IsValid && item.Definition != null)
+            .OrderByDescending(item => InventorySortValue(item, inventorySort))
+            .ThenByDescending(item => item.Rarity).ToArray();
+        // 削除時は他の武器を勝手に選択しない。移動した同一個体は選択を維持する。
+        if (!inventoryItems.Any(item => item.InstanceId == selectedInventoryId)) selectedInventoryId = 0;
+    }
+
     private void DrawInventoryCells(Rect row, ItemInstance instance, string hand, bool header)
     {
         float[] widths = { 80, row.width - 480, 100, 100, 100, 100 };
-        string[] values = header
-            ? new[] { hand, "武器名", "レア度", "攻撃力", "防御力", "HP" }
-            : new[] { hand, ItemName(instance.Definition), RarityLabel(instance.Rarity),
-                $"+{instance.AttackBonus:0.#}", $"+{instance.DefenseBonus:0.#}", $"+{instance.MaxHpBonus:0.#}" };
+        string[] values = InventoryCellValues(instance, hand, header);
         float x = row.x;
         for (int column = 0; column < widths.Length; column++)
         {
@@ -299,12 +297,28 @@ public class HUD : MonoBehaviour
     {
         switch (sort)
         {
-            case InventorySort.Attack: return item.AttackBonus;
-            case InventorySort.Defense: return item.DefenseBonus;
+            case InventorySort.AttackMultiplier: return item.AttackMultiplier;
+            case InventorySort.DamageReduction: return DisplayedReduction(item);
             case InventorySort.Hp: return item.MaxHpBonus;
             default: return (int)item.Rarity;
         }
     }
+
+    private static string[] InventoryCellValues(ItemInstance instance, string hand, bool header) => header
+        ? new[] { hand, "武器名", "レア度", "攻撃倍率", "軽減率", "HP" }
+        : new[] { hand, ItemName(instance.Definition), RarityLabel(instance.Rarity),
+            FormatMultiplier(instance.AttackMultiplier), FormatReduction(DisplayedReduction(instance)), $"+{instance.MaxHpBonus:0.#}" };
+
+    private static string FormatMultiplier(float value) => "×" + value.ToString("0.###", CultureInfo.InvariantCulture);
+    private static string FormatReduction(float value) => (value * 100).ToString("0.#", CultureInfo.InvariantCulture) + "%";
+    private static float DisplayedReduction(ItemInstance instance) => instance.Definition != null && instance.Definition.IsShield
+        ? instance.DamageReductionRate : 0f;
+
+    private static string PlayerStatusLabel(PlayerStats player) =>
+        $"レベル {player.Level}  HP {Mathf.CeilToInt(player.CurrentHp)}/{Mathf.CeilToInt(player.MaxHp)}" +
+        (player.IsDead ? " （戦闘不能）" : "") +
+        $"\n\n経験値 {Mathf.FloorToInt(player.Exp)}/{Mathf.CeilToInt(player.ExpToNext)}" +
+        $"\n本人攻撃力 {player.AttackPower:0.##}　合成軽減率 {FormatReduction(player.DamageReductionRate)}";
 
     private void DrawEquippedHand(PlayerEquipment equipment, bool leftHand, Rect area)
     {
@@ -393,7 +407,7 @@ public class HUD : MonoBehaviour
         timerText.enabled = true;
         timerText.gameObject.SetActive(true);
         Place(teamText, 0, 1, 32, -24, 480, 96, 24, TextAlignmentOptions.TopLeft);
-        Place(playerText, 0, 0, 32, 156, 500, 116, 28, TextAlignmentOptions.TopLeft);
+        Place(playerText, 0, 0, 32, 144, 720, 200, 26, TextAlignmentOptions.TopLeft);
         Place(leftLabel, 0, 0, 32, 24, 620, 100, 26, TextAlignmentOptions.TopLeft);
         Place(rightLabel, .5f, 0, 0, 24, 620, 100, 26, TextAlignmentOptions.TopLeft);
         Place(hint, 1, 0, -32, 24, 280, 44, 24, TextAlignmentOptions.Right);
@@ -401,7 +415,7 @@ public class HUD : MonoBehaviour
         Place(resultText, .5f, .5f, 0, 0, 1000, 200, 44, TextAlignmentOptions.Center);
         Place(crosshair, .5f, .5f, 0, 0, 24, 24, 24, TextAlignmentOptions.Center);
         crosshair.text = "+";
-        playerBar = MakeBar("Player HP", new Vector2(0, 0), new Vector2(32, 216), 400);
+        playerBar = MakeBar("Player HP", new Vector2(0, 0), new Vector2(32, 288), 400);
         fortressBar = MakeBar("Fortress HP", new Vector2(.5f, 1), new Vector2(0, -124), 480);
         battleRoot.SetActive(false);
     }
@@ -469,8 +483,9 @@ public class HUD : MonoBehaviour
         var definition = instance.Definition;
         string input = leftHand ? "左クリック" : "右クリック";
         if (!instance.IsValid || definition == null)
-            return leftHand ? $"{input}：装備なし\n攻撃力 ―" : $"{input}：素手\n攻撃力 {player.GetAttack(false):0.#}";
-        return $"{input}：{ItemName(definition)}\n{RarityLabel(instance.Rarity)} / 攻撃力 {player.GetAttack(leftHand):0.#}";
+            return leftHand ? $"{input}：装備なし\n攻撃なし" : $"{input}：素手\n×1 ／ 会心前攻撃力 {player.GetAttack(false):0.##}";
+        return $"{input}：{ItemName(definition)} ［{RarityLabel(instance.Rarity)}］\n" +
+            $"{FormatMultiplier(instance.AttackMultiplier)} ／ 会心前攻撃力 {player.GetAttack(leftHand):0.##}";
     }
 
     private static string ItemName(ItemData item) => LocalizeWords(item.displayName);
@@ -493,7 +508,7 @@ public class HUD : MonoBehaviour
 
     // 表示だけを翻訳し、基礎作り担当の通知・RPC契約は変更しない。
     private static string LocalizeWords(string value) => (value ?? "")
-        .Replace("Crystal Sword", "クリスタルソード").Replace("Magic Book", "魔法の本")
+        .Replace("Crystal Sword", "クリスタルソード").Replace("Magic Book", "魔法の本").Replace("Shield", "盾")
         .Replace("Common", "コモン").Replace("Rare", "レア").Replace("Epic", "エピック");
 
     private static string LocalizeMessage(string message)

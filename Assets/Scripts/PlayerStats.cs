@@ -15,7 +15,6 @@ public partial class PlayerStats : NetworkBehaviour
     [Header("基本ステータス (Lv1)")]
     [SerializeField] private float baseMaxHp = 100f;
     [SerializeField] private float baseAttack = 12f;
-    [SerializeField] private float baseDefense = 0f;
     [SerializeField] private float baseMoveSpeed = 6f;
     [Range(0f, 1f), SerializeField] private float baseCriticalChance = 0f;
     [Min(1f), SerializeField] private float baseCriticalMultiplier = 1.5f;
@@ -31,7 +30,6 @@ public partial class PlayerStats : NetworkBehaviour
     [Header("レベルごとの上昇量")]
     [SerializeField] private float hpPerLevel = 15f;
     [SerializeField] private float attackPerLevel = 2f;
-    [SerializeField] private float defensePerLevel = 0.5f;
     [SerializeField] private float moveSpeedPerLevel = 0.1f;
 
     [Header("経験値")]
@@ -58,7 +56,9 @@ public partial class PlayerStats : NetworkBehaviour
     public bool IsDead => isDead.Value;
 
     public float MaxHp => baseMaxHp + hpPerLevel * (Level - 1) + equipment.TotalMaxHp + upgradeBonuses.Value.MaxHp;
-    public float Defense => baseDefense + defensePerLevel * (Level - 1) + equipment.TotalDefense + upgradeBonuses.Value.Defense;
+    [System.Obsolete("本人の防御力は廃止。DamageReductionRateを使用してください。")]
+    public float Defense => 0f;
+    public float DamageReductionRate => 1f - equipment.IncomingDamageMultiplier;
     public float MoveSpeed => baseMoveSpeed + moveSpeedPerLevel * (Level - 1) + upgradeBonuses.Value.MoveSpeed;
     public float JumpHeight => Mathf.Max(0f, jumpHeight + upgradeBonuses.Value.JumpHeight);
     public float CriticalChance => Mathf.Clamp01(baseCriticalChance + upgradeBonuses.Value.CriticalChance);
@@ -68,19 +68,22 @@ public partial class PlayerStats : NetworkBehaviour
     public float BlinkDuration => Mathf.Max(0.02f, blinkDuration);
     public float BlinkCooldown => Mathf.Max(0f, blinkCooldown);
 
-    public float GetAttack(bool leftHand) => baseAttack + attackPerLevel * (Level - 1)
-        + equipment.GetWeaponAttackBonus(leftHand) + (equipment.Armor?.attackBonus ?? 0f) + upgradeBonuses.Value.Attack;
+    public float AttackPower => baseAttack + attackPerLevel * (Level - 1) + upgradeBonuses.Value.Attack;
+    public float GetAttack(bool leftHand) => AttackPower * equipment.GetWeaponAttackMultiplier(leftHand);
 
-    public float GetAttackDamage(bool leftHand)
+    public float GetAttackDamage(bool leftHand) => RollAttackDamage(leftHand).Amount;
+
+    public AttackDamageResult RollAttackDamage(bool leftHand)
     {
         float damage = GetAttack(leftHand);
         float chance = CriticalChance;
-        return IsServer && (chance >= 1f || chance > 0f && Random.value < chance) ? damage * CriticalMultiplier : damage;
+        bool critical = IsServer && (chance >= 1f || chance > 0f && Random.value < chance);
+        return new AttackDamageResult { Amount = critical ? damage * CriticalMultiplier : damage, IsCritical = critical };
     }
 
     public float GetSwingDuration(ItemData weapon) => Mathf.Max(0.1f, weapon.swingDuration / AttackSpeedMultiplier);
     public float GetAttackInterval(float interval, ItemData weapon) => Mathf.Max(0.02f, interval / AttackSpeedMultiplier,
-        weapon != null && weapon.attackType == WeaponAttackType.Melee ? GetSwingDuration(weapon) : 0f);
+        weapon != null && weapon.IsMeleeAttack ? GetSwingDuration(weapon) : 0f);
 
     private Vector3 SpawnPosition
     {
@@ -172,6 +175,21 @@ public partial class PlayerStats : NetworkBehaviour
         NotifyOwnerRpc(message);
     }
 
+    // Monsterが受理した命中だけを、消滅しない攻撃者PlayerObjectから本人へ送る。
+    public void NotifyDamageConfirmed(AttackDamageResult damage, Vector3 position)
+    {
+        if (!IsServer || !IsSpawned || !(damage.Amount > 0f) || float.IsInfinity(damage.Amount)
+            || !DamageFeedback.IsFinite(position)) return;
+        DamageConfirmedOwnerRpc(damage.Amount, position, damage.IsCritical);
+    }
+
+    [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+    private void DamageConfirmedOwnerRpc(float amount, Vector3 position, bool critical)
+    {
+        if (!IsOwner) return;
+        DamageFeedback.Publish(new DamageFeedbackData { Amount = amount, WorldPosition = position, IsCritical = critical });
+    }
+
     // ---- 以下はホストだけが実行 ----
 
     public void AddExp(float amount)
@@ -192,9 +210,9 @@ public partial class PlayerStats : NetworkBehaviour
 
     public void TakeDamage(float rawDamage)
     {
-        if (!IsServer || isDead.Value) return;
+        if (!IsServer || isDead.Value || !(rawDamage > 0f) || float.IsInfinity(rawDamage)) return;
 
-        float dmg = Mathf.Max(1f, rawDamage - Defense);
+        float dmg = rawDamage * equipment.IncomingDamageMultiplier;
         currentHp.Value = Mathf.Max(0f, currentHp.Value - dmg);
 
         if (currentHp.Value <= 0f)

@@ -93,7 +93,6 @@ public partial class PlayerStats
         {
             case UpgradeStat.Attack: bonuses.Attack += choice.Amount; break;
             case UpgradeStat.MaxHp: bonuses.MaxHp += choice.Amount; break;
-            case UpgradeStat.Defense: bonuses.Defense += choice.Amount; break;
             case UpgradeStat.CriticalChance: bonuses.CriticalChance = Mathf.Clamp01(bonuses.CriticalChance + choice.Amount); break;
             case UpgradeStat.CriticalDamage: bonuses.CriticalDamage += choice.Amount; break;
             case UpgradeStat.AttackSpeed: bonuses.AttackSpeed += choice.Amount; break;

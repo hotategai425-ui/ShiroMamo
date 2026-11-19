@@ -41,14 +41,14 @@ public struct LevelUpOffer : INetworkSerializable, IEquatable<LevelUpOffer>
 
 public struct PlayerUpgradeBonuses : INetworkSerializable, IEquatable<PlayerUpgradeBonuses>
 {
-    public float Attack, MaxHp, Defense, CriticalChance, CriticalDamage, AttackSpeed, MoveSpeed, JumpHeight;
+    public float Attack, MaxHp, CriticalChance, CriticalDamage, AttackSpeed, MoveSpeed, JumpHeight;
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
-        serializer.SerializeValue(ref Attack); serializer.SerializeValue(ref MaxHp); serializer.SerializeValue(ref Defense);
+        serializer.SerializeValue(ref Attack); serializer.SerializeValue(ref MaxHp);
         serializer.SerializeValue(ref CriticalChance); serializer.SerializeValue(ref CriticalDamage); serializer.SerializeValue(ref AttackSpeed);
         serializer.SerializeValue(ref MoveSpeed); serializer.SerializeValue(ref JumpHeight);
     }
-    public bool Equals(PlayerUpgradeBonuses other) => Attack.Equals(other.Attack) && MaxHp.Equals(other.MaxHp) && Defense.Equals(other.Defense)
+    public bool Equals(PlayerUpgradeBonuses other) => Attack.Equals(other.Attack) && MaxHp.Equals(other.MaxHp)
         && CriticalChance.Equals(other.CriticalChance) && CriticalDamage.Equals(other.CriticalDamage)
         && AttackSpeed.Equals(other.AttackSpeed) && MoveSpeed.Equals(other.MoveSpeed) && JumpHeight.Equals(other.JumpHeight);
 }

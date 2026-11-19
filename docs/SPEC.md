@@ -1,6 +1,6 @@
 # ShiroMamo 現行技術仕様
 
-更新日 2026-11-18 / 版 0.23
+更新日 2026-11-19 / 版 0.26
 
 個体差実装の基点コミットは`382e965`。過去の調査時点の未コミット情報は履歴に保管している。
 
@@ -298,6 +298,40 @@ UI担当はFull HDのGameビュー0.82倍、ローカルStartHostで合成ItemIn
 基礎作りから、ユーザーが「VRでは武器の形で命中候補を調べ、ホストがダメージを確定する。入力・武器の動きと戦闘ルールを分ける」という方向を承認したと共有された。PCでの武器の振りと将来のVR追跡姿勢を共通の判定処理へ渡す構成で進める。VR入力やXRパッケージの導入は今回の着手範囲に含めない。
 
 現行コードには外部姿勢用のBeginAttack(bool, Vector3)、SubmitMeleePose(bool, int, Vector3, Quaternion, float)、CancelMeleeAttack(bool, int)がある。攻撃IDを取得して握りのワールド位置・回転・動作進行度を送り、PCの振り開始用RequestAttackとは分けて利用できる。VRの追跡入力、自動スイングの開始条件、振動、実機向け操作は未実装。
+
+## 敵付近のダメージ数字（DAMAGE-01）
+
+承認仕様は、攻撃した本人だけに、ホストが確定した会心込みの攻撃ダメージを表示すること。残HPを超える場合も攻撃の確定値を使う。頭上付近から浮上・フェードし、敵の撃破後も表示を残す。通常白、会心黄色で拡大し、壁越しには見せない。基礎通知・UI単体に加え、ホスト素手命中からOwner RPCと表示状態までの隔離統合検証が完了。実画面と端末別の統合受入は未完了。
+
+PlayerStats.RollAttackDamage(bool)はAttackDamageResultのAmount・IsCriticalを一度抽選し、近接は振り開始、魔法は発射時に保持する。素手は命中時に抽選。GetAttackDamage(bool)はfloat互換ラッパーとして維持する。Monster.TakeDamage(AttackDamageResult, PlayerStats, Vector3)はサーバー上の生存・Spawn済み敵と正の有限ダメージを確認してHPから引き、致死Despawn前に攻撃者へ通知する。旧float版はHP処理を維持するが、攻撃者を捏造して数字を出さない。
+
+頭上基準は敵ルートのXZと非Trigger Collider群の上端Y。ColliderなしはRenderer上端、どちらもなければルート。攻撃者が同じNetworkManagerのサーバー管理下であることを確認し、PlayerStats.NotifyDamageConfirmedからServer invoke限定のOwner RPCを通してDamageFeedback.DamageConfirmedを一度発火する。ホスト本人への別通知は追加しない。魔法の新InitはAttackDamageResultとPlayerStatsを受け、旧float版も維持する。攻撃者が死亡してもPlayerObject存続中は通知でき、切断で消滅していれば通知しない。
+
+左右それぞれの受理済み攻撃IDで再送を拒否し、近接のConsumedと魔法のimpactedで重複を防ぐ。無効値や不受理命中ではHPと通知を変更しない。
+
+DamageNumberPresenterがDamageFeedback.DamageConfirmedを購読し、Amount・WorldPosition・IsCriticalだけを使う。自動初期化とsceneLoadedで表示用Canvasを生成、シーン再開始やdisableで旧表示と購読を消す。敵Transform・親子関係・寿命を参照せず、受信位置を保持する。数字ごとのNetworkObjectは作らない。
+
+独立したScreenSpaceOverlay Canvasへワールド位置をローカルカメラで毎フレーム投影する。表示は固定HUDの位置へ貼り付かない。sortingOrderは-10。背面、near/far外、画面外、環境Colliderに遮られた場合は隠す。RaycastAllとカメラ位置のOverlapSphereを使い、敵・プレイヤー・拾得品・魔法弾・Triggerを遮蔽物から除く。横ずらし後の位置も調べる。Colliderのない壁は遮蔽対象にならない。
+
+設定は`Assets/Resources/DamageNumberSettings.asset`。既存のNotoSansJPとライセンスを再利用し、表示用プレハブの追加はない。
+
+| 仮設定 | 現在値 |
+| --- | --- |
+| 数字の書式 | InvariantCultureの0.#。表示だけ小数1桁まで、末尾0省略 |
+| 基準位置への加算 | 上へ0.15m |
+| 寿命・上昇・フェード開始 | 0.9秒・0.65m・寿命の30% |
+| Full HD基準文字 | 36px、会心1.25倍（45px） |
+| 色 | 通常純白、会心純黄 |
+| 文字領域 | 240×90 |
+| 横ずらし | 40px間隔の5位置 |
+| 同時上限 | 96。超過時は最古表示を再利用 |
+| 環境Mask・終点余白 | 全レイヤー・0.02m |
+
+Time.deltaTimeで寿命・浮上・フェードを更新し、全体停止中はこれらも停止する。カメラ投影と遮蔽は停止中も更新する。0.05未満等の小さい正値は書式で0と表示される場合があり、将来の微小ダメージ書式は未決定。上限時の最古表示再利用は負荷対策による担当判断で、すべての数字が常に寿命いっぱい残る保証とは区別する。
+
+UI単体のnographics隔離Playは合成イベントのTMP状態・投影・物理遮蔽・寿命・停止復帰を検証。追加の隔離統合試験ではBeginAttackから通常の素手命中・HP減少・Owner RPC・Presenterへ通し、通常17/白36px、残HP5への会心17/黄45pxと敵Despawn後の表示保持を確認したと担当報告。AddExpで実TeamProgressionの停止を発生させ、timeScale0中のage・位置・alpha保持、両者のChooseLevelUp後の寿命終了も確認した。製品8ソースは元ファイルとSHA256一致との報告で、合成Publishは使っていない。
+
+同一プロセスの静的イベントとPresenterを共有する試験なので、参加者画面だけの表示分離を証明するものではない。プレイヤー位置同期は固定し、NPC停止とクライアント敵Collider無効化を使用。実入力・目視、剣/魔法とUIの統合、参加者攻撃の端末分離、実命中時の壁際、通常移動同期、別PC/Relay/ビルド/XRは未確認。
 
 ## 制作者モード
 

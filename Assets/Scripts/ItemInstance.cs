@@ -10,9 +10,15 @@ public struct ItemInstance : INetworkSerializable, IEquatable<ItemInstance>
     public ulong InstanceId;
     public int DefinitionIndex;
     public ItemRarity Rarity;
-    public float AttackBonus;
-    public float DefenseBonus;
+    public float AttackMultiplier;
+    public float DamageReductionRate;
     public float MaxHpBonus;
+
+    // 旧読み取りUI/APIの移行用。旧加算値や防御を新しい単位へ読み替えない。
+    [Obsolete("加算攻撃は廃止。AttackMultiplierを使用してください。")]
+    public float AttackBonus => 0f;
+    [Obsolete("防御力は廃止。DamageReductionRateを使用してください。")]
+    public float DefenseBonus => 0f;
 
     public bool IsValid => InstanceId != 0 && DefinitionIndex >= 0;
     public ItemData Definition => IsValid ? ItemDatabase.Get(DefinitionIndex) : null;
@@ -22,18 +28,18 @@ public struct ItemInstance : INetworkSerializable, IEquatable<ItemInstance>
         serializer.SerializeValue(ref InstanceId);
         serializer.SerializeValue(ref DefinitionIndex);
         serializer.SerializeValue(ref Rarity);
-        serializer.SerializeValue(ref AttackBonus);
-        serializer.SerializeValue(ref DefenseBonus);
+        serializer.SerializeValue(ref AttackMultiplier);
+        serializer.SerializeValue(ref DamageReductionRate);
         serializer.SerializeValue(ref MaxHpBonus);
     }
 
     public bool Equals(ItemInstance other) => InstanceId == other.InstanceId
         && DefinitionIndex == other.DefinitionIndex && Rarity == other.Rarity
-        && AttackBonus.Equals(other.AttackBonus) && DefenseBonus.Equals(other.DefenseBonus)
+        && AttackMultiplier.Equals(other.AttackMultiplier) && DamageReductionRate.Equals(other.DamageReductionRate)
         && MaxHpBonus.Equals(other.MaxHpBonus);
 
     public override bool Equals(object obj) => obj is ItemInstance other && Equals(other);
-    public override int GetHashCode() => HashCode.Combine(InstanceId, DefinitionIndex, Rarity, AttackBonus, DefenseBonus, MaxHpBonus);
+    public override int GetHashCode() => HashCode.Combine(InstanceId, DefinitionIndex, Rarity, AttackMultiplier, DamageReductionRate, MaxHpBonus);
 
     internal static ItemInstance Create(ulong id, int definitionIndex, ItemData definition, WeaponRarityRoll rarityOverride = null)
     {
@@ -42,8 +48,8 @@ public struct ItemInstance : INetworkSerializable, IEquatable<ItemInstance>
             InstanceId = id,
             DefinitionIndex = definitionIndex,
             Rarity = definition.rarity,
-            AttackBonus = definition.attackBonus,
-            DefenseBonus = definition.defenseBonus,
+            AttackMultiplier = SanitizePositive(definition.attackMultiplier),
+            DamageReductionRate = definition.IsShield ? SanitizeRate(definition.damageReductionRate) : 0f,
             MaxHpBonus = definition.maxHpBonus
         };
         if (definition.slot != ItemSlot.Weapon) return item;
@@ -52,31 +58,21 @@ public struct ItemInstance : INetworkSerializable, IEquatable<ItemInstance>
         if (setting == null) return item;
         item.Rarity = setting.rarity;
 
-        // 1つの能力を同じ個体に重複抽選しない。候補をシャッフルして選ぶ。
-        int[] order = { 0, 1, 2 };
-        int selected = 0;
-        int count = Mathf.Clamp(setting.bonusCount, 0, order.Length);
-        for (int i = 0; i < order.Length && selected < count; i++)
-        {
-            int swap = UnityEngine.Random.Range(i, order.Length);
-            int bonus = order[swap];
-            order[swap] = order[i];
-            order[i] = bonus;
-            Vector2 range = setting.GetRange(bonus);
-            float low = Mathf.Max(0f, Mathf.Min(range.x, range.y));
-            float high = Mathf.Max(0f, Mathf.Max(range.x, range.y));
-            if (!(high > 0f) || float.IsInfinity(high) || float.IsNaN(low)) continue;
-            float value = Mathf.Round(UnityEngine.Random.Range(low, high) * 10f) / 10f;
-            switch (bonus)
-            {
-                case 0: item.AttackBonus += value; break;
-                case 1: item.DefenseBonus += value; break;
-                case 2: item.MaxHpBonus += value; break;
-            }
-            selected++;
-        }
+        item.AttackMultiplier = RollRange(setting.attackMultiplierRange, 1000f);
+        item.MaxHpBonus += RollRange(setting.maxHpBonusRange, 10f);
+        item.DamageReductionRate = definition.IsShield ? SanitizeRate(setting.damageReductionRate) : 0f;
         return item;
     }
+
+    private static float RollRange(Vector2 range, float precision)
+    {
+        float low = SanitizePositive(Mathf.Min(range.x, range.y));
+        float high = SanitizePositive(Mathf.Max(range.x, range.y));
+        return Mathf.Round(UnityEngine.Random.Range(low, high) * precision) / precision;
+    }
+
+    private static float SanitizePositive(float value) => float.IsNaN(value) || float.IsInfinity(value) ? 0f : Mathf.Max(0f, value);
+    internal static float SanitizeRate(float value) => float.IsNaN(value) || float.IsInfinity(value) ? 0f : Mathf.Clamp01(value);
 
     private static WeaponRarityRoll PickRarity(WeaponRarityRoll[] settings)
     {

@@ -417,7 +417,6 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   baseMaxHp: 100
   baseAttack: 12
-  baseDefense: 0
   baseMoveSpeed: 6
   jumpHeight: 1.5
   blinkDistance: 4
@@ -425,7 +424,6 @@ MonoBehaviour:
   blinkCooldown: 1.5
   hpPerLevel: 15
   attackPerLevel: 2
-  defensePerLevel: 0.5
   moveSpeedPerLevel: 0.1
   expToNextBase: 30
   expGrowth: 1.4

@@ -1,6 +1,6 @@
 # ShiroMamo 引き継ぎ
 
-更新日 2026-11-18
+更新日 2026-11-19
 
 ## 最初に把握すること
 
@@ -45,6 +45,52 @@ DROP-01限定の基礎作りによるHUD行編集は完了し、今回のHUD.cs�
 
 ## 未完了・次の候補
 
+### EQUIP-02 武器倍率と盾軽減への変更相談
+
+基礎作りから、ユーザーが次の変更を決めたと共有された。攻撃は本人攻撃力×使用手の武器倍率とし、武器の加算攻撃力を廃止。本人の防御力と3択の防御を廃止し、剣・本には防御を付けない。追加されたtate.fbxを盾の外見に使い、装備中だけ常時軽減、両手盾は軽減率を順次適用する。武器固有・共通スキルは今回の対象外。
+
+追加回答でHP補正は剣・本・盾すべてに維持し、倍率は同じ種類・同じレア度でも抽選すると確定。盾は小ダメージと既存ノックバックを与える近接攻撃で、前へ突き出す。盾は通常ドロップへ追加し、剣/本/盾の重みを1対1対1とする。現行SPEC/GAME_SPECの加算・防御の説明は変更前の現状として区別する。
+
+承認された調整用初期値は、剣/本の倍率C1.2〜1.5・R1.5〜1.8・E1.8〜2.2、盾C0.15〜0.25・R0.20〜0.30・E0.25〜0.35、HPは全3種C5〜15・R10〜25・E20〜40。盾軽減は同レア固定のC10%・R20%・E30%でInspector調整可。各個体で倍率とHPの2項目を抽選し、レア度重み70/25/5と敵の装備ドロップ確率は維持する予定。最終バランスとして固定した値ではない。
+
+回答後の基礎担当範囲は、ItemData/ItemInstance/ItemDatabase、PlayerEquipment/PlayerStats/PlayerAttack、成長状態・カタログ、制作者モードとその独立画面の整合。新規盾表示Prefab・ShieldDataとmeta、gameplay.unityのItemDatabase配列への盾追加だけも、今回の基礎側へ割り当てる。シーンの他の配置・UIテーマ・既存武器モデルは対象外。既存の安定ID・enum値を再割当しない。旧AttackBonusを倍率として読み替えず、別フィールドで単位変更を明示する。
+
+追加でWeaponBlade.csの盾バッシュ動作、Player.prefabの旧baseDefense・defensePerLevel保存値の除去、Goblin/Orc/Witchのドロップ表への盾追加を基礎側へ割り当てる。プレイヤーの他の保存値は変更しない。tate.fbxは担当の隔離インポート確認で約0.02m幅のXZ面モデルとの報告。FBX/Importerは変えず、新規wrapperPrefabで約50倍・X90度等の仮調整を行う予定。実画面の見た目は未確認。
+
+UI側の編集範囲はHUD.csだけ。攻撃加算列を個体の倍率×表示へ、防御列を盾軽減率%へ変更し、HPと各列ソート、本人攻撃力と合成軽減の表示へ整合させる。独立LevelUpChoiceUI/CreatorModeUIは基礎側。ユーザーの「UI担当に指示してください」という許可を受け、UI担当チャットへ新契約・編集境界・検証項目を直接送信済み。DAMAGE-01の未コミットコード・通知契約と拾得/装備/ドロップ/個体ID/同期を保持する。
+
+新契約（実装完了報告前のため予定）はItemInstance.AttackMultiplier(float)、DamageReductionRate(float)、既存MaxHpBonus/InstanceId/DefinitionIndex/Rarity/Definitionを維持。ItemDataはMelee=0、Projectile=1を維持しShieldBash=2、IsShield/IsMeleeAttackを追加。PlayerStats.AttackPowerは本人攻撃力、GetAttack(bool)は当該手の倍率を適用した会心前値（素手1倍）、DamageReductionRateは装備盾の合成軽減率（20%2枚で36%）。会心と確定通知APIは維持する。
+
+基礎担当が上記APIを実ファイルへ書き込んだことを司令塔で確認し、UI担当へ接続可能と送信済み。旧成長enumの値2を欠番として他の値とカタログIDを維持するとの報告。盾のモデル・データ登録と通信・バッシュ・軽減の検証は進行中で、機能全体の成功結果は未受領。
+
+旧AttackBonus/DefenseBonusを倍率へ変換しない。旧参照がコンパイルできるよう0を返す廃止エイリアスを残す担当案で、新計算・抽選・同期では使わない。試合内個体の単位変換移行はせず、再起動後に新形式で生成する。永続セーブは引き続きない。UIは新契約が実ファイルに揃ったことを確認して切り替える。
+
+### DAMAGE-01 承認事項と担当
+
+ユーザーが「提案通りでそれぞれに仕事を振ってください」と承認。武器スキル追加より先に、本人が与えたホスト確定の会心込みダメージを敵の頭上付近へ表示する。残HP5へ17の攻撃なら17を表示。少し浮上して薄く消え、撃破しても表示は最後まで残す。壁越しには見せない。通常は白、会心は黄色で少し大きくする。位置・サイズ・時間はInspectorで調整できる仮値。毒等の将来の区別は未決定。
+
+着手前確認で両担当とも待機中。基礎作りはMonster.cs、PlayerAttack.cs、MagicProjectile.cs、PlayerStats.csと新規DamageFeedback.cs（meta含む）を担当。既存GetAttackDamage等の互換APIを維持し、攻撃者・会心情報をホスト側で保持、Monsterで受理した正の有限ダメージを致死消滅前に一度通知する。魔法は発射時の攻撃者・会心・ダメージを保持し、命中前には表示しない。持続ダメージは今回追加しない。
+
+UI担当は新規DamageNumberPresenter.cs・必要な表示スクリプト/プレハブ/Resources設定とmetaを担当。既存フォントを再利用し、HUD・シーン・プレハブ保存値・基礎の担当コードは編集しない。起動と購読はUI側で自動初期化する。表示は敵の寿命から独立し、各端末のカメラと遮蔽で制御する。
+
+共通契約は基礎担当が作るpublic struct DamageFeedbackDataのpublicフィールドAmount(float)、WorldPosition(Vector3)、IsCritical(bool)と、public static class DamageFeedbackのpublic static event System.Action<DamageFeedbackData> DamageConfirmed。WorldPositionはホストが採った敵頭上の基準位置で、UIが高さ等の仮オフセットを適用する。攻撃者の所有プレイヤー等の存続するNetworkObjectからOwner対象RPCを送り、本人端末でイベントを一度発火する。ホスト本人も二重発火させない。UI側からのダメージ再計算やネットワークオブジェクトの生成は行わない。
+
+UIは契約ファイルが揃うまで同名の仮定義を作らず、準備可能な表示部から進める。数値書式・演出時間等の仮値は担当が報告し、全体停止中は既存ゲーム時間に合わせて浮上・消滅も止める構成を初期案とする。致死、壁越し、近接/素手/魔法、会心、連打、ホスト/参加者、自分以外の非表示と一度だけの通知を両担当の境界で確認する。ゲームコードと独立表示の編集範囲を分離し、API変更が必要なら司令塔へ報告する。
+
+UI側はDamageNumberPresenter・DamageNumberView・DamageNumberSettingsと各meta、Resourcesの設定assetとmetaの8ファイルを追加し、完了報告を受領した。HUD・基礎コード・契約・既存素材は変更していない。仮値はSPEC.mdのDAMAGE-01へ集約。検証用の一時Editorメニューは削除されたことを確認。
+
+Logs/CodexDamageNumberUiVerified.logのDAMAGE NUMBER SYNTHETIC UI CHECK PASSEDを司令塔で確認。担当はnographics隔離Playで合成イベントからの17/白・24.5/黄・文字サイズ、1イベント1表示、上昇フェード、対象破棄後保持、壁/壁内カメラ/Trigger、背面画面外/別カメラ、無効値、96上限、disable購読解除、実PlayフレームのtimeScale0固定と復帰消滅の17確認を実施したと報告。C#コンパイルも成功。ピクセルの目視確認ではなく、実命中・Owner通信の統合検証でもない。実画面・操作・別PC/Relay・ビルド等は未確認。
+
+基礎担当も実装・隔離通信検証の完了報告を受領。変更はMonster、PlayerAttack、MagicProjectile、PlayerStats、新規DamageFeedbackとmetaの6件。契約は変更なし。AttackDamageResultとRollAttackDamageの保存結果、旧float API互換、頭上Bounds、Server限定Owner RPCと再送拒否を司令塔で照合した。
+
+Logs/CodexDamageFeedbackVerified6.logのDAMAGE FEEDBACK HOST REMOTE OWNER BARE MELEE MAGIC CRITICAL OVERKILL LETHAL INVALID AND REPLAY CHECK PASSEDとSHARED PROGRESSION CLEANUP PASSEDを確認。担当は同一Unity内ループバックで両者の素手/剣/本の6経路、保存済み会心値、残HP5へ17の致死、敵消滅後の位置、無効値・旧API・再送・非所有呼出・壁/範囲外の非通知を検証。8有効通知が本人へ各1回、相棒0回であることを検証用受信ログで照合したと報告。
+
+基礎検証はプレイヤー移動/位置同期を停止し、NPCを制作者モードで停止、クライアント敵Colliderを検証用に無効化した条件。UI Presenterは入れず通知だけを検証した。基礎とUIを合わせた実命中の画面・本人限定表示、通常移動同期、別プロセス/別PC/Relay/ビルドは引き続き未確認。司令塔でUnityは再実行していない。
+
+追加のUI統合報告を受領。Logs/CodexDamageNumberIntegratedVerified2.logのDAMAGE NUMBER REAL HIT OWNER RPC LETHAL CRITICAL AND LEVEL UP PAUSE INTEGRATION CHECK PASSEDとSHARED PROGRESSION CLEANUP PASSEDを確認。ホストBeginAttack→素手命中→HP減少→Owner RPC→Presenterで通常17/白36pxと残HP5への会心17/黄45px、実敵Despawn後の保持を検証したと報告。実AddExpと両OwnerのChooseLevelUpでレベルアップ停止中0.7秒以上のage/位置/alpha固定、解除後消滅も確認。合成Publishなし、製品8ソースはSHA256一致との報告。
+
+統合試験はnographicsで、移動/位置同期固定・敵停止・クライアント敵Collider無効化。同一プロセスのイベント/Presenter共有のため参加者端末だけの表示分離は証明しない。剣/魔法とのUI統合、実入力・目視・壁際の実命中、通常移動同期、別PC/Relay/ビルドは未確認。今回の製品ファイル追加変更はなし。司令塔はログ照合のみ。
+
 ### 共有経験値とレベルアップ選択の着手
 
 基礎作りから、ユーザーが経験値・レベルの2人共有と、レベルアップごとに各自が3択から自己強化する変更を依頼したと共有された。既存の自動成長を残す、2人とも選び終わるまでゲーム全体を止める、攻撃・最大HP・防御・会心率・会心ダメージ・攻撃速度・移動速度・ジャンプ力の8候補からランダム重複なし3つ、強化量はInspector調整可能な仮値とすることも承認済みとの報告。
@@ -73,6 +119,8 @@ F2で開くホスト専用画面、Editor/Development Build限定。PROG-01で�
 
 | ID | 仕事 | 担当・状態 | 完了とする条件 |
 | --- | --- | --- | --- |
+| EQUIP-02 | 武器倍率・防御廃止・盾軽減 | ユーザー回答確定。基礎の編集範囲とHUDのUI範囲を分離、新契約の実装待ち | 倍率・HP個体抽選、レア度別軽減と両手合成、盾バッシュと通知、モデル/登録/ドロップ、防御3択除外、個体/装備/同期/制作者とUIの整合を検証 |
+| DAMAGE-01 | 被弾した敵の付近へダメージ数字 | 個別検証とホスト素手→Owner RPC→表示・致死・実レベルアップ停止の隔離統合済み。実画面/端末別受入待ち | 剣/魔法のUI統合、参加者攻撃の表示分離、見やすさ・壁際・連打、通常移動同期・別PC/Relay/ビルドを確認 |
 | PROG-01 | 共有経験値と各自の3択強化 | 実装・隔離API/通信検証済み、実操作受入待ち | 独立3択UIの日本語・実クリック・フォーカス・HUD重なり、移動同期込み停止復帰、実120秒境界、別PC/Relay/ビルドを確認 |
 | DEV-01 | 制作者モード | 実装と隔離内部API検証済み・実操作受入待ち | F2・キー/マウス、日本語配置・スクロール・小解像度・カーソルと既存HUDの重なり、Release/Development実ビルド、別PC/Relay、停止を跨ぐ通常ウェーブ時計・遷移を確認 |
 | DROP-01 | 武器を落として味方へ渡す | 実装と隔離環境検証済み・実操作受入待ち。HUD編集予約解除 | 実クリック、歩行・ジャンプ・ダッシュ中の取得と位置同期、攻撃中の削除、地形と空中の見た目、別PC・Relayで確認。個体維持・重複拒否等の検証済み範囲は下表参照 |

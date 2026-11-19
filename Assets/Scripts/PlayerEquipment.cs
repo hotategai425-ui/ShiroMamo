@@ -30,8 +30,22 @@ public class PlayerEquipment : NetworkBehaviour
         return visual != null ? visual.GetComponent<WeaponBlade>() : null;
     }
     public ItemInstance GetWeaponInstance(bool leftHand) => GetInventoryInstance(GetEquippedWeaponIndex(leftHand));
-    public float GetWeaponAttackBonus(bool leftHand) => GetWeaponInstance(leftHand).AttackBonus;
-    public float TotalDefense => GetWeaponInstance(true).DefenseBonus + GetWeaponInstance(false).DefenseBonus + (Armor?.defenseBonus ?? 0f);
+    [System.Obsolete("加算攻撃は廃止。GetWeaponAttackMultiplierを使用してください。")]
+    public float GetWeaponAttackBonus(bool leftHand) => 0f;
+    [System.Obsolete("防御力は廃止。IncomingDamageMultiplierを使用してください。")]
+    public float TotalDefense => 0f;
+    public float GetWeaponAttackMultiplier(bool leftHand)
+    {
+        var instance = GetWeaponInstance(leftHand);
+        if (!instance.IsValid) return 1f;
+        return float.IsNaN(instance.AttackMultiplier) || float.IsInfinity(instance.AttackMultiplier) ? 0f : Mathf.Max(0f, instance.AttackMultiplier);
+    }
+    public float IncomingDamageMultiplier => (1f - GetShieldReduction(true)) * (1f - GetShieldReduction(false));
+    private float GetShieldReduction(bool leftHand)
+    {
+        var instance = GetWeaponInstance(leftHand);
+        return instance.Definition != null && instance.Definition.IsShield ? ItemInstance.SanitizeRate(instance.DamageReductionRate) : 0f;
+    }
     public float TotalMaxHp => GetWeaponInstance(true).MaxHpBonus + GetWeaponInstance(false).MaxHpBonus + (Armor?.maxHpBonus ?? 0f);
 
     private void Awake()
@@ -221,10 +235,10 @@ public class PlayerEquipment : NetworkBehaviour
         var anchor = new GameObject(side < 0f ? "Left Weapon" : "Right Weapon");
         anchor.transform.SetParent(parent, false);
         anchor.transform.localPosition = IsOwner
-            ? new Vector3(side * 0.38f, -0.56f, 0.85f)
+            ? new Vector3(side * 0.38f, -0.56f, 0.85f) + weapon.heldPositionOffset
             : new Vector3(side * 0.65f, -0.45f, 0.32f);
         anchor.transform.localRotation = Quaternion.Euler(20f, 0f, -side * 12f);
-        bool melee = weapon.attackType == WeaponAttackType.Melee;
+        bool melee = weapon.IsMeleeAttack;
         anchor.transform.localScale = Vector3.one * (melee ? Mathf.Max(0.1f, weapon.meleeScale) : (IsOwner ? 0.55f : 1f));
         Instantiate(weapon.pickupVisualPrefab, anchor.transform, false);
         if (melee)

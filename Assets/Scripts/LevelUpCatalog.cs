@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum UpgradeStat { Attack, MaxHp, Defense, CriticalChance, CriticalDamage, AttackSpeed, MoveSpeed, JumpHeight }
+// 廃止した防御の値2は再利用しない。既存アセットと提示IDの意味を維持する。
+public enum UpgradeStat { Attack = 0, MaxHp = 1, CriticalChance = 3, CriticalDamage = 4, AttackSpeed = 5, MoveSpeed = 6, JumpHeight = 7 }
 
 [Serializable]
 public class LevelUpOption

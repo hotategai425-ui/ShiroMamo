@@ -14,6 +14,8 @@ public class PlayerAttack : NetworkBehaviour
     private double localNextLeftAttack;
     private double localNextRightAttack;
     private int nextAttackId;
+    private int lastAcceptedLeftAttackId;
+    private int lastAcceptedRightAttackId;
     private readonly SwingState leftSwing = new SwingState();
     private readonly SwingState rightSwing = new SwingState();
 
@@ -26,7 +28,7 @@ public class PlayerAttack : NetworkBehaviour
         public float Progress = -1f;
         public Vector3 Position;
         public Quaternion Rotation;
-        public float Damage;
+        public AttackDamageResult Damage;
         public bool HasPose;
         public bool Consumed;
     }
@@ -55,7 +57,7 @@ public class PlayerAttack : NetworkBehaviour
     {
         if (!IsSpawned || !IsOwner) return false;
         ItemData weapon = stats.Equipment.GetWeapon(leftHand);
-        bool melee = weapon != null && weapon.attackType == WeaponAttackType.Melee;
+        bool melee = weapon != null && weapon.IsMeleeAttack;
         WeaponBlade blade = stats.Equipment.GetWeaponBlade(leftHand);
         if (melee && blade == null) return false;
         int id = BeginAttack(leftHand, aim);
@@ -71,7 +73,7 @@ public class PlayerAttack : NetworkBehaviour
         if (!(aim.sqrMagnitude > 0f) || float.IsInfinity(aim.sqrMagnitude)) return 0;
         ItemData weapon = stats.Equipment.GetWeapon(leftHand);
         if (leftHand && weapon == null) return 0;
-        bool melee = weapon != null && weapon.attackType == WeaponAttackType.Melee;
+        bool melee = weapon != null && weapon.IsMeleeAttack;
 
         double now = Time.timeAsDouble;
         ref double next = ref (leftHand ? ref localNextLeftAttack : ref localNextRightAttack);
@@ -86,6 +88,8 @@ public class PlayerAttack : NetworkBehaviour
     private void AttackRpc(bool leftHand, Vector3 aim, int attackId)
     {
         if (!CanAttack()) return;
+        ref int lastAccepted = ref (leftHand ? ref lastAcceptedLeftAttackId : ref lastAcceptedRightAttackId);
+        if (attackId <= 0 || attackId <= lastAccepted) return;
         // まだ武器がない状態から敵を倒せるよう、右手は素手でも攻撃できる。
         if (leftHand && stats.Equipment.LeftWeapon == null) return;
 
@@ -102,6 +106,7 @@ public class PlayerAttack : NetworkBehaviour
         aim.Normalize();
 
         bool melee = weapon != null && !projectile;
+        lastAccepted = attackId;
         nextAttack = now + stats.GetAttackInterval(attackInterval, weapon);
         if (projectile)
         {
@@ -109,7 +114,7 @@ public class PlayerAttack : NetworkBehaviour
             Vector3 origin = transform.position + Vector3.up * 0.6f
                 + transform.right * (leftHand ? -0.35f : 0.35f);
             MagicProjectile shot = Instantiate(weapon.projectilePrefab, origin, Quaternion.LookRotation(aim));
-            shot.Init(aim, weapon.projectileSpeed, weapon.projectileLifetime, stats.GetAttackDamage(leftHand));
+            shot.Init(aim, weapon.projectileSpeed, weapon.projectileLifetime, stats.RollAttackDamage(leftHand), stats);
             shot.GetComponent<NetworkObject>().Spawn(true);
             return;
         }
@@ -125,14 +130,14 @@ public class PlayerAttack : NetworkBehaviour
             swing.Progress = -1f;
             swing.HasPose = false;
             swing.Consumed = false;
-            swing.Damage = stats.GetAttackDamage(leftHand);
+            swing.Damage = stats.RollAttackDamage(leftHand);
             return;
         }
 
         // 素手は武器モデルを持たないため、正面の距離判定を使う。
         Monster target = FindTarget(aim);
         if (target != null)
-            target.TakeDamage(stats.GetAttackDamage(leftHand), target.transform.position - transform.position);
+            target.TakeDamage(stats.RollAttackDamage(leftHand), stats, target.transform.position - transform.position);
     }
 
     // 将来の追跡入力は、武器の実際のワールド姿勢をこの入口へ渡す。
@@ -198,7 +203,7 @@ public class PlayerAttack : NetworkBehaviour
             swing.Consumed = MeleeHitResolver.Sweep(swing.Weapon, swing.Position, swing.Rotation,
                 position, rotation, stats, out Monster target);
             if (target != null)
-                target.TakeDamage(swing.Damage, target.transform.position - transform.position);
+                target.TakeDamage(swing.Damage, stats, target.transform.position - transform.position);
         }
         swing.Position = position;
         swing.Rotation = rotation;
@@ -231,7 +236,7 @@ public class PlayerAttack : NetworkBehaviour
 
         foreach (var m in Monster.All)
         {
-            if (m == null || !m.IsSpawned) continue;
+            if (m == null || !m.IsSpawned || !m.IsServer || m.NetworkManager != NetworkManager) continue;
             Vector3 d = m.transform.position - pos;
             d.y = 0f;
             float sqr = d.sqrMagnitude;

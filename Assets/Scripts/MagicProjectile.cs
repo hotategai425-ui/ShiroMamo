@@ -10,12 +10,25 @@ public class MagicProjectile : NetworkBehaviour
     private Vector3 velocity;
     private float remainingTime;
     private float damage;
+    private bool isCritical;
+    private PlayerStats attacker;
+    private bool impacted;
 
     public void Init(Vector3 direction, float speed, float lifetime, float attackDamage)
     {
         velocity = direction.normalized * Mathf.Max(0.1f, speed);
         remainingTime = Mathf.Max(0.1f, lifetime);
         damage = attackDamage;
+        isCritical = false;
+        attacker = null;
+        impacted = false;
+    }
+
+    public void Init(Vector3 direction, float speed, float lifetime, AttackDamageResult attackDamage, PlayerStats source)
+    {
+        Init(direction, speed, lifetime, attackDamage.Amount);
+        isCritical = attackDamage.IsCritical;
+        attacker = source;
     }
 
     private void FixedUpdate()
@@ -56,13 +69,15 @@ public class MagicProjectile : NetworkBehaviour
 
     private void Impact(Collider other)
     {
+        if (!IsServer || !IsSpawned || impacted) return;
+        impacted = true;
         var monster = other.GetComponentInParent<Monster>();
         if (monster != null && monster.IsSpawned)
         {
             Vector3 direction = velocity;
             direction.y = 0f;
             if (direction.sqrMagnitude < 0.001f) direction = -monster.transform.forward;
-            monster.TakeDamage(damage, direction);
+            monster.TakeDamage(new AttackDamageResult { Amount = damage, IsCritical = isCritical }, attacker, direction);
         }
         NetworkObject.Despawn(true);
     }

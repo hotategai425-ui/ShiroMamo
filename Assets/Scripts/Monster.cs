@@ -177,9 +177,16 @@ public class Monster : NetworkBehaviour
 
     // 停止中もダメージと撃破を受け付ける。
     public void TakeDamage(float amount, Vector3 hitDirection = default)
+        => TakeDamage(new AttackDamageResult { Amount = amount }, null, hitDirection);
+
+    public void TakeDamage(AttackDamageResult attack, PlayerStats attacker, Vector3 hitDirection = default)
     {
-        if (!IsServer || dead) return;
+        float amount = attack.Amount;
+        if (!IsServer || !IsSpawned || dead || !(hp > 0f) || !(amount > 0f) || float.IsInfinity(amount)) return;
+        Vector3 feedbackPosition = GetDamageFeedbackPosition();
         hp -= amount;
+        if (attacker != null && attacker.IsServer && attacker.NetworkManager == NetworkManager)
+            attacker.NotifyDamageConfirmed(attack, feedbackPosition);
         if (hp <= 0f)
         {
             Die();
@@ -193,6 +200,27 @@ public class Monster : NetworkBehaviour
         // 重ねて被弾した場合は、最後の攻撃方向へ押し戻す。速度は加算しない。
         knockbackDirection = direction.normalized;
         knockbackRemaining = data.knockbackDuration;
+    }
+
+    private Vector3 GetDamageFeedbackPosition()
+    {
+        Vector3 position = transform.position;
+        bool found = false;
+        foreach (var shape in GetComponentsInChildren<Collider>())
+        {
+            if (!shape.enabled || shape.isTrigger) continue;
+            position.y = found ? Mathf.Max(position.y, shape.bounds.max.y) : shape.bounds.max.y;
+            found = true;
+        }
+        if (!found)
+        {
+            foreach (var visual in GetComponentsInChildren<Renderer>())
+            {
+                position.y = found ? Mathf.Max(position.y, visual.bounds.max.y) : visual.bounds.max.y;
+                found = true;
+            }
+        }
+        return position;
     }
 
     private void MoveKnockback()
