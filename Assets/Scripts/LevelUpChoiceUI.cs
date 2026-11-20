@@ -135,7 +135,7 @@ public class LevelUpChoiceUI : MonoBehaviour
             GUI.skin = skin;
             GUI.depth = -100;
             float width = Mathf.Min(900f, Screen.width - 24f);
-            float height = Mathf.Min(360f, Screen.height - 24f);
+            float height = Mathf.Min(440f, Screen.height - 24f);
             GUILayout.BeginArea(new Rect((Screen.width - width) / 2, (Screen.height - height) / 2, width, height), GUI.skin.box);
             GUILayout.Label($"レベルアップ！ チーム共有レベル {player.Level}");
             GUILayout.Label("全員が選び終わるまで、戦闘とウェーブ時間を停止しています。");
@@ -144,6 +144,10 @@ public class LevelUpChoiceUI : MonoBehaviour
             else
             {
                 GUILayout.Label($"レベル {displayedOffer.Level} の強化を1つ選んでください（残り {displayedOffer.PendingCount} 回）");
+                GUILayout.Label("カーソルを下の選択肢へ移動して選んでください。");
+                // FPSのロック解除直後の中央カーソルが、選択ボタンに重ならない配置にする。
+                float choicesTop = height * 0.5f + 24f;
+                GUILayout.BeginArea(new Rect(10f, choicesTop, width - 20f, height - choicesTop - 10f));
                 GUILayout.BeginHorizontal();
                 for (int i = 0; i < 3; i++)
                 {
@@ -153,7 +157,7 @@ public class LevelUpChoiceUI : MonoBehaviour
                     GUI.enabled = previousEnabled && inputReady && Time.frameCount > armedFrame
                         && gatedTicket == displayedOffer.Ticket && player.CurrentLevelUpOffer.Ticket == displayedOffer.Ticket
                         && sentTicket != displayedOffer.Ticket;
-                    if (GUILayout.Button($"{name ?? choice.Stat.ToString()}\n\n{Describe(choice)}", GUILayout.MinHeight(130f), GUILayout.ExpandWidth(true)))
+                    if (GUILayout.Button($"{name ?? choice.Stat.ToString()}\n\n{Describe(choice)}", GUILayout.MinHeight(Mathf.Min(130f, height - choicesTop - 64f)), GUILayout.ExpandWidth(true)))
                     {
                         if (TrySendChoice(displayedOffer.Ticket, i)) GUIUtility.ExitGUI();
                     }
@@ -162,6 +166,7 @@ public class LevelUpChoiceUI : MonoBehaviour
                 GUI.enabled = previousEnabled;
                 if (sentTicket == displayedOffer.Ticket) GUILayout.Label("選択を送信しています……");
                 else if (!inputReady) GUILayout.Label("誤選択防止のため、クリック・決定キーを離して少し待ってください。");
+                GUILayout.EndArea();
             }
             GUILayout.EndArea();
         }
