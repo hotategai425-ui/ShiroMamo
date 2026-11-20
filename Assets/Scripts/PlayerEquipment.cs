@@ -76,6 +76,15 @@ public class PlayerEquipment : NetworkBehaviour
         return weapons[index];
     }
 
+    public WeaponSkillLoadout GetWeaponSkills(bool leftHand) => GetWeaponInstance(leftHand).Skills;
+    public int EquippedReflectCount => GetEquippedReflectCount(true) + GetEquippedReflectCount(false);
+
+    private int GetEquippedReflectCount(bool leftHand)
+    {
+        var item = GetWeaponInstance(leftHand);
+        return item.Definition != null && item.Definition.IsShield ? item.Skills.Count(WeaponSkillId.Reflect) : 0;
+    }
+
     public void EquipWeapon(int inventoryIndex, bool leftHand)
     {
         if (!IsSpawned || !IsOwner) return;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -13,6 +14,7 @@ public struct ItemInstance : INetworkSerializable, IEquatable<ItemInstance>
     public float AttackMultiplier;
     public float DamageReductionRate;
     public float MaxHpBonus;
+    public WeaponSkillLoadout Skills;
 
     // 旧読み取りUI/APIの移行用。旧加算値や防御を新しい単位へ読み替えない。
     [Obsolete("加算攻撃は廃止。AttackMultiplierを使用してください。")]
@@ -31,15 +33,16 @@ public struct ItemInstance : INetworkSerializable, IEquatable<ItemInstance>
         serializer.SerializeValue(ref AttackMultiplier);
         serializer.SerializeValue(ref DamageReductionRate);
         serializer.SerializeValue(ref MaxHpBonus);
+        serializer.SerializeValue(ref Skills);
     }
 
     public bool Equals(ItemInstance other) => InstanceId == other.InstanceId
         && DefinitionIndex == other.DefinitionIndex && Rarity == other.Rarity
         && AttackMultiplier.Equals(other.AttackMultiplier) && DamageReductionRate.Equals(other.DamageReductionRate)
-        && MaxHpBonus.Equals(other.MaxHpBonus);
+        && MaxHpBonus.Equals(other.MaxHpBonus) && Skills.Equals(other.Skills);
 
     public override bool Equals(object obj) => obj is ItemInstance other && Equals(other);
-    public override int GetHashCode() => HashCode.Combine(InstanceId, DefinitionIndex, Rarity, AttackMultiplier, DamageReductionRate, MaxHpBonus);
+    public override int GetHashCode() => HashCode.Combine(InstanceId, DefinitionIndex, Rarity, AttackMultiplier, DamageReductionRate, MaxHpBonus, Skills);
 
     internal static ItemInstance Create(ulong id, int definitionIndex, ItemData definition, WeaponRarityRoll rarityOverride = null)
     {
@@ -55,13 +58,32 @@ public struct ItemInstance : INetworkSerializable, IEquatable<ItemInstance>
         if (definition.slot != ItemSlot.Weapon) return item;
 
         WeaponRarityRoll setting = rarityOverride ?? PickRarity(definition.weaponRarityRolls);
-        if (setting == null) return item;
-        item.Rarity = setting.rarity;
-
-        item.AttackMultiplier = RollRange(setting.attackMultiplierRange, 1000f);
-        item.MaxHpBonus += RollRange(setting.maxHpBonusRange, 10f);
-        item.DamageReductionRate = definition.IsShield ? SanitizeRate(setting.damageReductionRate) : 0f;
+        if (setting != null)
+        {
+            item.Rarity = setting.rarity;
+            item.AttackMultiplier = RollRange(setting.attackMultiplierRange, 1000f);
+            item.MaxHpBonus += RollRange(setting.maxHpBonusRange, 10f);
+            item.DamageReductionRate = definition.IsShield ? SanitizeRate(setting.damageReductionRate) : 0f;
+        }
+        item.Skills = RollSkills(definition, item.Rarity);
         return item;
+    }
+
+    private static WeaponSkillLoadout RollSkills(ItemData definition, ItemRarity rarity)
+    {
+        var result = new WeaponSkillLoadout
+        {
+            Innate = definition.AllowsSkill(definition.innateSkill) ? definition.innateSkill : WeaponSkillId.None
+        };
+        int slots = rarity == ItemRarity.Epic ? 2 : rarity == ItemRarity.Rare ? 1 : 0;
+        if (slots == 0 || definition.commonSkillCandidates == null) return result;
+        var candidates = new List<WeaponSkillId>();
+        foreach (var skill in definition.commonSkillCandidates)
+            if (definition.AllowsSkill(skill) && !candidates.Contains(skill)) candidates.Add(skill);
+        if (candidates.Count == 0) return result;
+        result.CommonFirst = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+        if (slots == 2) result.CommonSecond = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+        return result;
     }
 
     private static float RollRange(Vector2 range, float precision)

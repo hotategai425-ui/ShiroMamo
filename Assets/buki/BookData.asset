@@ -40,3 +40,5 @@ MonoBehaviour:
     maxHpBonusRange: {x: 20, y: 40}
     damageReductionRate: 0
   salvageExp: 5
+  innateSkill: 2
+  commonSkillCandidates: 0100000002000000

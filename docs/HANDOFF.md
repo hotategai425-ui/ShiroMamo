@@ -1,6 +1,6 @@
 # ShiroMamo 引き継ぎ
 
-更新日 2026-11-19
+更新日 2026-11-20
 
 ## 最初に把握すること
 
@@ -45,6 +45,20 @@ DROP-01限定の基礎作りによるHUD行編集は完了し、今回のHUD.cs�
 
 ## 未完了・次の候補
 
+### SKILL-01 初期3効果・個体抽選同期・表示（承認済み、基礎実装/UI準備を依頼済み）
+
+ユーザーは司令塔提案の毒/貫通/反射と共通候補を承認。SPEC 0.33に確定内容・未指定事項を記録した。目的は武器を拾い、効果と重複を見て選ぶ遊びを試すこと。着手前git statusはクリーン、両担当の最新ターンは完了で新しい作業報告なし（チャット状態notLoaded）。
+
+基礎作り：ItemData.cs、ItemInstance.cs、ItemDatabase.cs、PlayerEquipment.cs、PlayerAttack.cs、MagicProjectile.cs、Monster.cs、PlayerStats.cs、および新規スキル定義/管理/毒状態/ダメージ文脈用スクリプトとmetaを担当。武器3種のCrystalSwordData.asset/BookData.asset/ShieldData.assetへのスキル設定、新規独立スキル設定assetとmetaも割当。HUD/LevelUpChoiceUI/CreatorModeUI/DamageNumber系、シーン・既存プレハブ・既存モデル・共通文書は対象外。追加ファイルが必要なら変更前に司令塔へ調整する。
+
+第1段階でデータ契約と未指定の毒管理・再帰防止・帰属の設計案を報告し、司令塔が確認する。確定範囲の抽選/同期を進めつつ、判断が必要な効果は確定まで実装しない。公開APIと実ファイルを確認後にUIへ実装依頼する。
+
+UI担当：今回の編集予約はHUD.csと必要なら新規独立スキル表示ヘルパー/metaのみ。準備報告後、司令塔が実APIとデータ検証ログを照合してUI実装依頼を送信した。個体の固有/共通と重複数、固定効果を選択武器で確認できる表示を既存比較・選択ID・ソート・装備操作を保って追加する。既存列/操作の全面改変、独自抽選・戦闘計算・仮契約は行わない。
+
+基礎は倍率/HP・レア度/個体ID保持とスキル同期往復/途中参加/制作者、毒の量/時間/重複/更新/停止復帰、貫通の距離順衝突・同敵重複/複数Collider/壁/出現時重なり、反射の複数盾・軽減前・致死/帰属/非再帰を検証する。MELEE-02・通常ダメージ通知・攻撃停止・ドロップも回帰確認する。実操作/隔離API/通信/別PCを区別して報告。共有文書とGitは司令塔が担当し、次の実行指示まで未コミット保持。
+
+基礎への実装依頼・UIへの準備依頼：両チャットへ送信成功。基礎の契約報告を確認後にUI実装へ進む。
+
 ### MELEE-02完了報告と後続スキル計画
 
 2026-11-19、ユーザーは共有文書更新と基礎作りへの近接複数命中依頼を承認。着手前に基礎・UI両チャットがidle、作業ツリーに変更なしを確認した。今回の目的は、敵の群れに攻撃を当てた手応えを改善すること。
@@ -55,7 +69,7 @@ MELEE-02は剣・盾バッシュとも複数敵へ減衰なし100%、同じ敵�
 
 完了報告には変更ファイル、承認仕様との差、コンパイルと検証環境・手順・成功ログ・未確認を添える。実入力/目視・隔離試験・通信試験を区別。今回の編集予約を返却し、未コミットのまま司令塔へ引き継ぐ。送信状況は下記に記録する。
 
-後続SKILL-01はデータ・抽選・同期・表示の設計段階。生成時抽選、固有は剣=毒/本=貫通/通常盾=反射、Common/Rare/Epicの共通枠0/1/2が決定。重複可・固定性能・基本加算・武器別候補制限・進化なし。候補12種と未決定事項はSPECの承認済み未実装節へ集約した。通常盾の反射は最新回答を優先し、反射専用盾の差別化は未決定。毒数値、貫通重複/同一敵再命中、反射対象/複数盾/再反射、抽選分類と重み等を独断で実装しない。次段階は公開APIを決めてから基礎とUIを分け、改めて着手承認を得る。
+後続SKILL-01は2026-11-20の追加承認で初期3効果の実装へ進む。最新仕様と担当は直下のSKILL-01節およびSPEC 0.33を参照。MELEE-02はc50e03bへコミット・push済み。
 
 MELEE-02は依頼送信後に完了報告を受領。製品差分2ファイルと成功ログを司令塔で照合した。EQUIP-02の実表示・実操作受入は残し、新機能の検証で確認済みへ読み替えない。
 
@@ -137,7 +151,7 @@ F2で開くホスト専用画面、Editor/Development Build限定。PROG-01で�
 | ID | 仕事 | 担当・状態 | 完了とする条件 |
 | --- | --- | --- | --- |
 | MELEE-02 | 剣・盾バッシュの複数命中 | 基礎作り完了・編集予約解除・隔離129項目成功 | 隔離検証済み。実クリック・目視・通常移動同期・別PC/Relay/ビルドの受入待ち |
-| SKILL-01 | 固有・共通スキル | 方針承認・詳細未決定・実装未着手 | 固有と生成時抽選方針を記録。未決定事項と公開APIを整理し別途着手承認 |
+| SKILL-01 | 固有・共通スキル | 初期3効果承認・基礎実装/UI準備を依頼済み | 公開API照合後にUI実装。抽選同期・毒/貫通/反射と実操作の確認範囲を区別 |
 | UI-07 | レベルアップ時の誤選択防止 | UI担当完了・編集予約解除 | 内部29項目と選択RPC検証済み。実連打・実クリック・2人通信の受入待ち |
 | EQUIP-02 | 武器倍率・防御廃止・盾軽減 | 基礎とUIの実装・隔離検証済み。実画面と実環境受入待ち | 盾モデル/保持/バッシュ/左右視界、通常敵死亡のドロップ、実クリックと移動同期込み戦闘・交換、HUD実表示、別PC/Relay/ビルドを確認 |
 | DAMAGE-01 | 被弾した敵の付近へダメージ数字 | 個別検証とホスト素手→Owner RPC→表示・致死・実レベルアップ停止の隔離統合済み。実画面/端末別受入待ち | 剣/魔法のUI統合、参加者攻撃の表示分離、見やすさ・壁際・連打、通常移動同期・別PC/Relay/ビルドを確認 |
@@ -231,3 +245,51 @@ F2で開くホスト専用画面、Editor/Development Build限定。PROG-01で�
 | 25・26・28・29・30・31・32 | 弾速、射程、貫通数、発射数、爆発範囲、連鎖数、跳弾数 |
 | 33・34・35・36・37・38 | 炎上、毒、鈍足、凍結/気絶、弱体化、被ダメージ増加 |
 | 39・40・41 | 経験値獲得量、回収範囲、レア装備発見率 |
+
+### SKILL-01 データ契約の中間確認（2026-11-20）
+
+ItemInstance.Skills（WeaponSkillLoadout: Innate/CommonFirst/CommonSecond、CommonCount/GetCommon/Count）、WeaponSkillId None0/Poison1/Pierce2/Reflect3、WeaponSkillSettings.Currentとstatic GetDisplayName/GetDescription、PlayerEquipment.GetWeaponSkills/EquippedReflectCountを実ファイルで確認。担当のLogs/CodexWeaponSkillDataVerified2.log:449のWEAPON SKILL DATA RARITY CANDIDATES DUPLICATES WIRE EQUALITY CREATOR AND LEGACY CHECK PASSED samples=5400、:510のCLEANUP PASSEDを照合。コンパイル/Netcodeと抽選・wire等値・旧None等の試験報告であり、効果実装や実通信の全体成功ではない。途中参加/実Pickup往復の回帰は担当進行中。
+
+UIへ公開契約での実装依頼を送信済み。合計個数と基礎GetDescriptionの1個あたり説明を使い、合算式をUIへ重複実装しない。毒の人別管理/弱い再命中での最新値置換/tick維持/本人死亡・切断/制作者停止/毒と反射の通常白・追加ノックバックなしはユーザーへ提案して回答待ち。未承認の細部を効果・表示に確定として入れない。
+
+### SKILL-01 第1段階の検証報告（効果は未実装）
+
+基礎担当は12製品ファイル（ItemData/ItemInstance/PlayerEquipment、WeaponSkillLoadout/Settings各csとmeta、Resources設定assetとmeta、武器3種asset）を変更。全12ファイルの隔離コピーSHA256一致は担当確認。HUDはUI担当の作業で基礎側未編集。基礎編集予約は効果実装待ちとして継続。
+
+Logs/CodexSkillTransportVerified2.log:648のSKILL INDIVIDUAL DATA LATE JOIN PHYSICAL TRANSFER CREATOR AND BASELINE REGRESSION CHECK PASSED、:660のSKILL TRANSPORT CLEANUP PASSEDを司令塔で確認。担当はUnity6000.0.46f1隔離batchmode/nographics終了0、同一プロセス2 NetworkManager/127.0.0.1:18219でSkills込みEqualsによる途中参加時の所持/装備一致、実DropWeapon/実Pickupのホスト→参加者→ホスト往復、制作者Epic・既存盾バッシュ/軽減/HP/通知/共有成長を検証したと報告。先の5400個体試験と併せて個体データ段階の成功で、毒/貫通/反射の発動成功ではない。
+
+制約は合成個体/API/Reflection、プレイヤー移動とNetworkTransform固定、停止NPC、参加者NPCのCollider/Monster無効化、共有static通知イベント。隔離日本語フォント不足のError Pauseを試験内解除、UI検証なし。実入力・目視・UI新表示・通常移動同期・別プロセス/別PC/Relay/ビルド/XRは未確認。毒/貫通/反射効果、発射/振り開始時のスキル保存、効果の非再帰と停止復帰は未実装・未検証。旧wire混在と永続移行は対応せず、同版新試合の生成が基準。ユーザーへ提示済みの未指定効果案の回答を待つ。コミット・pushなし。
+### SKILL-01 UI表示段階の完了（効果本体は未実装）
+
+UI担当がHUD.csと新規WeaponSkillDisplay.cs/metaの3ファイルを変更して完了報告。今回のHUD/表示ヘルパー編集予約を解除する。基礎ファイル・武器asset・共有文書等は未編集。ItemInstance.Skillsを使い固有・共通と使用枠数・合計個数を表示、名前と1個あたり説明は基礎APIから取得し、UIで効果量を再計算しない。Noneは未設定、不正IDは未対応IDとして区別。反射説明の盾枚数とスキル個数の誤読を避ける補足を表示側だけで行う。
+
+詳細には固定文「スキル効果は未実装です。以下は予定の効果です。」がある。実装状態APIによる自動判定ではないため、効果実装の完了確認後に司令塔からUI担当へ削除/更新を依頼する必要がある。未承認の毒の細部は説明へ追加しない。
+
+窓高さ上限960、既存比較列/行高64/個体ID操作を維持し下部に独立詳細スクロールを追加。選択ID変更/消失/所持者変更で詳細先頭へ、同個体のソートでは維持する。Logs/CodexSkillHudVerified.txtのSKILL HUD INNATE COMMON TOTAL DESCRIPTION SORT SCROLL EQUIP DROP CHECK PASSEDを司令塔で照合。担当はUnity6000.0.46f1付属Roslynコンパイルと隔離nographicsで31項目、合成6個体の文字列・状態・4窓高幾何・実Host装備/ドロップAPI・個体スキル保持を確認したと報告。2ソースの試験コピーSHA256一致は担当確認。
+
+実ピクセル/長文欠け/小画面の読みやすさ・ホイール・GUI.Buttonへの実クリック・物理拾得・2人通信・別PC/Relay/ビルドは未確認。毒/貫通/反射の実効果試験ではない。司令塔は差分・ログ照合のみ。未コミット保持、基礎の効果予約とユーザーへの毒等細部の確認待ちは継続。
+### SKILL-01 効果本体の続行承認（2026-11-20）
+
+ユーザーの「実装しよう」で、司令塔が提示した毒の人別・最新値置換・tick維持・死亡/切断/停止条件・通常白/追加ノックバックなし・非再帰の案を承認し、効果本体へ続行する。正式内容はSPEC0.34を参照。過去節の回答待ちはこの承認で解消。基礎の既存予約内で毒/貫通/反射を実装・検証し、他担当のHUD/WeaponSkillDisplay/LevelUpChoiceUI等の差分は触らない。現在LevelUpChoiceUIにも未コミット差分があり今回基礎の対象外。
+
+基礎の実装・検証完了後に司令塔が照合し、UI担当へ固定の「スキル効果は未実装」注意文の更新を依頼する。完了前には消さない。実クリック・目視・通常移動同期・別PC/Relay等の未確認を引き続き区別。コミット・pushは新しい実行指示まで行わない。基礎への続行指示は送信成功。実装・検証結果の報告を待つ。
+### SKILL-01 基礎完了報告の照合（2026-11-20）
+
+基礎の20製品ファイルは、第1段階12件にPlayerAttack/MagicProjectile/Monster/PlayerStats、DamageContext.cs/meta、MonsterPoisonState.cs/metaを加えたもの。ItemDatabase/Resolver/UI/文書/シーン等は基礎側無変更。差分とログを司令塔で照合し、基礎の今回の予約を解除する。全20件の隔離コピーSHA256一致は担当確認。コミットpushなし。
+
+Logs/CodexWeaponSkillEffectsFinalVerified2.log:1971のWEAPON SKILL POISON PIERCE REFLECTION SNAPSHOT OWNER NETWORK AND REAL TEAM PAUSE CHECK PASSED checks=93、:1983 CLEANUPを確認。毒の更新/時刻/人別/死亡/切断/終了、非再帰/白/ノックバックなし、スキル保存、実飛翔貫通の上限/壁/順序/重複/致死、両盾/致死/AIの攻撃元からの反射、毒致死の実ドロップ、参加者Owner通知、実共有停止1.2秒と再開/制作者停止中の毒進行を試験したとの報告。
+
+Logs/CodexSkillMeleeRegressionVerified3.log:2543のSKILL LEGACY MAGIC AND MELEE MULTI FULL DAMAGE DEDUP WALL VALIDATION HOST REMOTE REGRESSION PASSED checks=129、:2555 CLEANUPと、Logs/CodexSkillEffectsTransportVerified.log:615のSKILL INDIVIDUAL DATA LATE JOIN PHYSICAL TRANSFER CREATOR AND BASELINE REGRESSION CHECK PASSED、:627 CLEANUPを確認。後者は1536抽選・途中参加/実Pickup往復・制作者/既存成長/軽減等。最後の0ダメージ弾停止修正は回帰2件の後で、効果93項目を最終再実行して成功。
+
+試験はUnity6000.0.46f1隔離batchmode/nographics。合成個体/姿勢/API/Reflection、毒境界はAdvanceへ合成時刻、移動/NetworkTransform固定、NPC停止・Collider検証形状置換、参加者複製NPC無効化、同プロセスWaveManager指定・共有通知イベント。AI1ケースで非サーバープレイヤー一覧を試験用に除外復元。隔離フォント不足はError Pause解除で進めUI成功には含めない。実画面/入力/移動同期込み戦闘・端末別数字・別PC/Relay/ビルド/XRは未確認。司令塔は再実行せず照合のみ。
+
+UI仕上げ：WeaponSkillDisplayの固定「効果未実装/予定」注意文の削除を依頼し、完了報告を照合した。今回の表示ヘルパー編集予約を解除する。基礎の効果未実装という過去節は当時の中間状態であり、現在の状態は本節とSPEC0.35を優先する。LevelUpChoiceUI差分は別作業で、今回の基礎完了へ混ぜて検証済みと扱わない。
+
+### SKILL-01 UI仕上げの確認
+
+WeaponSkillDisplay.csの旧未実装注意文1行のみを削除。固有/共通/合計・1個あたり説明・None/不明ID等は維持。Logs/CodexSkillDisplayFinalVerified.txtのSKILL DISPLAY CURRENT DESCRIPTION NONE UNKNOWN DUPLICATE CHECK PASSED checks=30を司令塔で照合。担当はUnity6000.0.46f1付属Roslynコンパイル、隔離batchmode/nographicsのEditMode文字列30項目、helperの試験コピーSHA256一致を確認したと報告。実画面/入力/スクロール・通信・戦闘の試験ではなく、LevelUpChoiceUI別差分も含めない。SKILL-01の基礎とUIの今回編集予約は終了。未コミットでユーザー指示待ち、実プレイ受入が次の確認事項。
+
+
+### 今回のGit保存範囲
+
+ユーザーのコミット・push指示によりSKILL-01基礎20ファイル・UI3ファイル・司令塔文書を保存対象とする。別作業のLevelUpChoiceUI.csはUI担当の完了報告と差分を照合し、選択肢を中央より下へ移す変更として別コミットにする。高さ上限440・中央下24pxから配置し0.35秒ゲートを維持。コンパイル/差分確認までで、実画面・連打操作感は未確認。今回のスキル効果の検証済み範囲へ混ぜない。

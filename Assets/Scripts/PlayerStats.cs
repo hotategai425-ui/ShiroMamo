@@ -209,8 +209,14 @@ public partial class PlayerStats : NetworkBehaviour
     }
 
     public void TakeDamage(float rawDamage)
+        => TakeDamage(rawDamage, null);
+
+    public void TakeDamage(float rawDamage, Monster source)
     {
         if (!IsServer || isDead.Value || !(rawDamage > 0f) || float.IsInfinity(rawDamage)) return;
+
+        bool canReflect = source != null && source.IsServer && source.IsAlive && source.NetworkManager == NetworkManager;
+        float reflected = canReflect ? rawDamage * WeaponSkillSettings.Current.ReflectRate * equipment.EquippedReflectCount : 0f;
 
         float dmg = rawDamage * equipment.IncomingDamageMultiplier;
         currentHp.Value = Mathf.Max(0f, currentHp.Value - dmg);
@@ -221,6 +227,9 @@ public partial class PlayerStats : NetworkBehaviour
             NotifyOwnerRpc("You were defeated... respawning");
             StartCoroutine(RespawnRoutine());
         }
+        // 自分が致死でも反射する。別の二次ダメージ文脈なので毒等を再帰させない。
+        if (canReflect && source != null && source.IsAlive)
+            source.TryTakeDamage(DamageContext.Secondary(reflected, this, DamageKind.Reflection));
     }
 
     // 装備変更で最大HPが減った場合に備えて

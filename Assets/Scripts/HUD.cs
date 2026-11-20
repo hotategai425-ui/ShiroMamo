@@ -21,6 +21,8 @@ public class HUD : MonoBehaviour
     private float messageHideTime;
     private readonly StringBuilder sb = new StringBuilder();
     private Vector2 inventoryScroll;
+    private Vector2 skillScroll;
+    private ulong skillDetailId;
     private ItemInstance[] inventoryItems;
     private PlayerEquipment inventoryOwner;
     private GameObject battleRoot;
@@ -169,7 +171,10 @@ public class HUD : MonoBehaviour
         if (Event.current.type == EventType.Layout || inventoryItems == null || inventoryOwner != equipment)
             RefreshInventorySnapshot(equipment);
         float width = Mathf.Min(1120, screenWidth - 40);
-        float height = Mathf.Min(820, screenHeight - 40);
+        float height = Mathf.Min(960, screenHeight - 40);
+        // 操作欄は固定し、狭い画面では詳細側を縮めて一覧2行分を確保。
+        float detailHeight = SkillDetailHeight(height);
+        float footerHeight = 164 + detailHeight;
         var window = new Rect((screenWidth - width) / 2, (screenHeight - height) / 2, width, height);
         FillRect(window, new Color(.075f, .085f, .105f, 1));
         GUI.BeginGroup(window);
@@ -188,7 +193,7 @@ public class HUD : MonoBehaviour
 
             float tableWidth = innerWidth - 20; // 縦スクロールバー用の幅を常に確保。
             DrawInventoryCells(new Rect(20, 210, tableWidth, 42), default, "装備", true);
-            var viewport = new Rect(20, 254, innerWidth, height - 430);
+            var viewport = new Rect(20, 254, innerWidth, height - footerHeight - 266);
             inventoryScroll = GUI.BeginScrollView(viewport, inventoryScroll,
                 new Rect(0, 0, tableWidth, Mathf.Max(viewport.height, inventoryItems.Length * 64)), false, true);
             try
@@ -214,26 +219,27 @@ public class HUD : MonoBehaviour
             finally { GUI.EndScrollView(); }
 
             var selected = inventoryItems.FirstOrDefault(item => item.InstanceId == selectedInventoryId);
-            float footerY = height - 164;
+            float footerY = height - footerHeight;
             FillRect(new Rect(20, footerY, innerWidth, 2), new Color(.32f, .35f, .4f));
             GUI.Label(new Rect(20, footerY + 8, innerWidth, 44), selected.IsValid
                 ? $"選択中：{ItemName(selected.Definition)} ［{RarityLabel(selected.Rarity)}］"
                 : "一覧の武器をクリックして選択してください。");
+            DrawSkillDetails(selected, new Rect(20, footerY + 52, innerWidth, detailHeight));
             bool previousEnabled = GUI.enabled;
             try
             {
                 GUI.enabled = previousEnabled && selected.IsValid;
-                if (GUI.Button(new Rect(20, footerY + 58, 200, 46), "左手に装備"))
+                if (GUI.Button(new Rect(20, footerY + detailHeight + 58, 200, 46), "左手に装備"))
                 {
                     equipment.EquipWeapon(selected.InstanceId, true);
                     GUIUtility.ExitGUI();
                 }
-                if (GUI.Button(new Rect(232, footerY + 58, 200, 46), "右手に装備"))
+                if (GUI.Button(new Rect(232, footerY + detailHeight + 58, 200, 46), "右手に装備"))
                 {
                     equipment.EquipWeapon(selected.InstanceId, false);
                     GUIUtility.ExitGUI();
                 }
-                if (GUI.Button(new Rect(width - 200, footerY + 58, 180, 46), "落とす"))
+                if (GUI.Button(new Rect(width - 200, footerY + detailHeight + 58, 180, 46), "落とす"))
                 {
                     equipment.DropWeapon(selected.InstanceId);
                     GUIUtility.ExitGUI();
@@ -246,12 +252,38 @@ public class HUD : MonoBehaviour
         finally { GUI.EndGroup(); }
     }
 
+    private void DrawSkillDetails(ItemInstance selected, Rect area)
+    {
+        RefreshSkillDetailSelection(selected);
+        var style = new GUIStyle(GUI.skin.label);
+        SetLabelColor(style, Color.white);
+        style.wordWrap = true;
+        string text = selected.IsValid ? WeaponSkillDisplay.Build(selected.Skills)
+            : "武器を選ぶと固有・共通スキルと説明を確認できます。";
+        float contentWidth = area.width - 22;
+        float contentHeight = Mathf.Max(area.height, style.CalcHeight(new GUIContent(text), contentWidth) + 12);
+        FillRect(area, new Color(.10f, .11f, .13f));
+        skillScroll = GUI.BeginScrollView(area, skillScroll, new Rect(0, 0, contentWidth, contentHeight), false, true);
+        try { GUI.Label(new Rect(0, 0, contentWidth, contentHeight), text, style); }
+        finally { GUI.EndScrollView(); }
+    }
+
+    private static float SkillDetailHeight(float windowHeight) => Mathf.Clamp(windowHeight - 698, 48, 140);
+
+    private void RefreshSkillDetailSelection(ItemInstance selected)
+    {
+        ulong id = selected.IsValid ? selected.InstanceId : 0;
+        if (skillDetailId != id) { skillDetailId = id; skillScroll = Vector2.zero; }
+    }
+
     private void RefreshInventorySnapshot(PlayerEquipment equipment)
     {
         if (inventoryOwner != equipment)
         {
             selectedInventoryId = 0;
             inventoryScroll = Vector2.zero;
+            skillDetailId = 0;
+            skillScroll = Vector2.zero;
             inventorySort = InventorySort.Rarity;
         }
         inventoryOwner = equipment;

@@ -30,6 +30,7 @@ public class PlayerAttack : NetworkBehaviour
         public Vector3 Position;
         public Quaternion Rotation;
         public AttackDamageResult Damage;
+        public WeaponSkillLoadout Skills;
         public bool HasPose;
         public bool Consumed;
         public readonly HashSet<ulong> HitEnemies = new HashSet<ulong>();
@@ -117,7 +118,8 @@ public class PlayerAttack : NetworkBehaviour
             Vector3 origin = transform.position + Vector3.up * 0.6f
                 + transform.right * (leftHand ? -0.35f : 0.35f);
             MagicProjectile shot = Instantiate(weapon.projectilePrefab, origin, Quaternion.LookRotation(aim));
-            shot.Init(aim, weapon.projectileSpeed, weapon.projectileLifetime, stats.RollAttackDamage(leftHand), stats);
+            shot.Init(aim, weapon.projectileSpeed, weapon.projectileLifetime, stats.RollAttackDamage(leftHand), stats,
+                stats.Equipment.GetWeaponSkills(leftHand));
             shot.GetComponent<NetworkObject>().Spawn(true);
             return;
         }
@@ -135,6 +137,7 @@ public class PlayerAttack : NetworkBehaviour
             swing.Consumed = false;
             swing.HitEnemies.Clear();
             swing.Damage = stats.RollAttackDamage(leftHand);
+            swing.Skills = stats.Equipment.GetWeaponSkills(leftHand);
             return;
         }
 
@@ -213,7 +216,7 @@ public class PlayerAttack : NetworkBehaviour
                 if (target == null || !target.IsSpawned || !target.IsServer
                     || target.NetworkManager != NetworkManager
                     || !swing.HitEnemies.Add(target.NetworkObjectId)) continue;
-                target.TakeDamage(swing.Damage, stats, target.transform.position - transform.position);
+                target.TryTakeDamage(DamageContext.Direct(swing.Damage, stats, swing.Skills), target.transform.position - transform.position);
             }
         }
         swing.Position = position;

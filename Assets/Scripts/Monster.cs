@@ -21,6 +21,7 @@ public class Monster : NetworkBehaviour
     private float dropChance;
     private float attackTimer;
     private bool dead;
+    public bool IsAlive => IsSpawned && !dead && hp > 0f;
     private bool creatorPaused;
     private bool wasKinematic;
     private Vector3 pausedVelocity;
@@ -71,6 +72,7 @@ public class Monster : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        GetComponent<MonsterPoisonState>()?.Clear();
         tint.OnValueChanged -= OnTintChanged;
     }
 
@@ -146,7 +148,7 @@ public class Monster : NetworkBehaviour
             if (attackTimer <= 0f)
             {
                 attackTimer = data.attackInterval;
-                if (targetPlayer != null) targetPlayer.TakeDamage(damage);
+                if (targetPlayer != null) targetPlayer.TakeDamage(damage, this);
                 else Fortress.Instance.TakeDamage(damage);
             }
         }
@@ -180,9 +182,15 @@ public class Monster : NetworkBehaviour
         => TakeDamage(new AttackDamageResult { Amount = amount }, null, hitDirection);
 
     public void TakeDamage(AttackDamageResult attack, PlayerStats attacker, Vector3 hitDirection = default)
+        => TryTakeDamage(DamageContext.Direct(attack, attacker), hitDirection);
+
+    public bool TryTakeDamage(DamageContext context, Vector3 hitDirection = default)
     {
+        var attack = context.Damage;
         float amount = attack.Amount;
-        if (!IsServer || !IsSpawned || dead || !(hp > 0f) || !(amount > 0f) || float.IsInfinity(amount)) return;
+        if (!IsServer || !IsAlive || !(amount > 0f) || float.IsInfinity(amount)) return false;
+        if (context.Kind != DamageKind.Direct) attack.IsCritical = false;
+        var attacker = context.Attacker;
         Vector3 feedbackPosition = GetDamageFeedbackPosition();
         hp -= amount;
         if (attacker != null && attacker.IsServer && attacker.NetworkManager == NetworkManager)
@@ -190,16 +198,20 @@ public class Monster : NetworkBehaviour
         if (hp <= 0f)
         {
             Die();
-            return;
+            return true;
         }
+
+        if (context.Kind != DamageKind.Direct) return true;
+        MonsterPoisonState.Apply(this, context);
 
         Vector3 direction = Flat(hitDirection);
         if (amount <= 0f || data == null || data.knockbackSpeed <= 0f || data.knockbackDuration <= 0f
-            || !(direction.sqrMagnitude > 0f) || float.IsInfinity(direction.sqrMagnitude)) return;
+            || !(direction.sqrMagnitude > 0f) || float.IsInfinity(direction.sqrMagnitude)) return true;
 
         // 重ねて被弾した場合は、最後の攻撃方向へ押し戻す。速度は加算しない。
         knockbackDirection = direction.normalized;
         knockbackRemaining = data.knockbackDuration;
+        return true;
     }
 
     private Vector3 GetDamageFeedbackPosition()

@@ -55,6 +55,15 @@ public class ItemData : ScriptableObject
     [Header("武器の個体抽選 (空なら上記の固定性能を使います)")]
     public WeaponRarityRoll[] weaponRarityRolls;
 
+    [Header("生成時に個体へ固定する武器スキル")]
+    public WeaponSkillId innateSkill;
+    public WeaponSkillId[] commonSkillCandidates;
+
+    public bool AllowsSkill(WeaponSkillId skill) => slot == ItemSlot.Weapon
+        && (skill == WeaponSkillId.Poison
+            || skill == WeaponSkillId.Pierce && attackType == WeaponAttackType.Projectile
+            || skill == WeaponSkillId.Reflect && IsShield);
+
     [Header("装備しなかった場合に経験値へ変換される量")]
     public float salvageExp = 5f;
 
