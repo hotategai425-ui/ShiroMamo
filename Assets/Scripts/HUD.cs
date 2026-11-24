@@ -514,7 +514,7 @@ public class HUD : MonoBehaviour
         var definition = instance.Definition;
         string input = leftHand ? "左クリック" : "右クリック";
         if (!instance.IsValid || definition == null)
-            return leftHand ? $"{input}：装備なし\n攻撃なし" : $"{input}：素手\n攻撃力 {player.GetAttack(false):0.##}";
+            return $"{input}：素手\n攻撃力 {player.GetAttack(leftHand):0.##}";
         return $"{input}：{ItemName(definition)} ［{RarityLabel(instance.Rarity)}］\n" +
             (definition.IsShield ? $"防御力 {FormatReduction(DisplayedReduction(instance))}"
                 : $"攻撃力 {player.GetAttack(leftHand):0.##}");

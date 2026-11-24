@@ -46,7 +46,7 @@ public class PlayerAttack : NetworkBehaviour
     {
         if (!IsSpawned || !IsOwner || !CanAttack() || stats.Equipment.IsControlBlocked) return;
 
-        bool leftPressed = GameInput.HandPressed(leftHand: true) && stats.Equipment.LeftWeapon != null;
+        bool leftPressed = GameInput.HandPressed(leftHand: true);
         bool rightPressed = GameInput.HandPressed(leftHand: false);
         if (!leftPressed && !rightPressed) return;
 
@@ -76,7 +76,6 @@ public class PlayerAttack : NetworkBehaviour
         if (!IsSpawned || !IsOwner || !CanAttack() || stats.Equipment.IsControlBlocked) return 0;
         if (!(aim.sqrMagnitude > 0f) || float.IsInfinity(aim.sqrMagnitude)) return 0;
         ItemData weapon = stats.Equipment.GetWeapon(leftHand);
-        if (leftHand && weapon == null) return 0;
         bool melee = weapon != null && weapon.IsMeleeAttack;
 
         double now = Time.timeAsDouble;
@@ -94,8 +93,7 @@ public class PlayerAttack : NetworkBehaviour
         if (!CanAttack()) return;
         ref int lastAccepted = ref (leftHand ? ref lastAcceptedLeftAttackId : ref lastAcceptedRightAttackId);
         if (attackId <= 0 || attackId <= lastAccepted) return;
-        // まだ武器がない状態から敵を倒せるよう、右手は素手でも攻撃できる。
-        if (leftHand && stats.Equipment.LeftWeapon == null) return;
+        // 左右とも、空いている手は同じ素手判定を使う。間隔と受理IDは手ごとに独立。
 
         double now = Time.timeAsDouble;
         ref double nextAttack = ref (leftHand ? ref nextLeftAttack : ref nextRightAttack);
