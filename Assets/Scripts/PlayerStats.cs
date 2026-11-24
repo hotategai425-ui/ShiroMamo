@@ -36,15 +36,18 @@ public partial class PlayerStats : NetworkBehaviour
     [SerializeField] private float expToNextBase = 30f;
     [SerializeField] private float expGrowth = 1.4f;
 
-    [Header("出現位置(2人は Z 方向に spacing だけ離れて出現)")]
-    [SerializeField] private Vector3 spawnOrigin = new Vector3(5f, 1f, 0f);
-    [SerializeField] private float spawnSpacing = 2f;
+    [Header("出現位置(左右X方向へ spacing だけ離れて出現)")]
+    [SerializeField] private Vector3 spawnOrigin = new Vector3(0f, 1.05f, 6f);
+    [SerializeField] private float spawnSpacing = 4f;
+    [SerializeField] private float spawnFacingYaw = 0f;
 
     [Header("やられた時")]
     [SerializeField] private float respawnDelay = 3f;
 
     private NetworkVariable<float> currentHp = new NetworkVariable<float>(1f);
     private NetworkVariable<bool> isDead = new NetworkVariable<bool>(false);
+    private NetworkVariable<int> spawnSlot = new NetworkVariable<int>(-1);
+    public int SpawnSlot => spawnSlot.Value;
 
     private PlayerEquipment equipment;
 
@@ -89,9 +92,7 @@ public partial class PlayerStats : NetworkBehaviour
     {
         get
         {
-            int slot = (int)(OwnerClientId % 2);          // 0 or 1
-            float z = (slot * 2 - 1) * spawnSpacing * 0.5f; // -1 or +1 の半分
-            return spawnOrigin + new Vector3(0f, 0f, z);
+            return spawnOrigin + Vector3.right * ((spawnSlot.Value * 2 - 1) * spawnSpacing * 0.5f);
         }
     }
 
@@ -106,6 +107,7 @@ public partial class PlayerStats : NetworkBehaviour
         teamProgression.OnValueChanged += OnTeamProgressionChanged;
         if (IsServer)
         {
+            AssignSpawnSlot();
             TeamProgression.For(NetworkManager).Register(this);
             currentHp.Value = MaxHp;
         }
@@ -138,7 +140,22 @@ public partial class PlayerStats : NetworkBehaviour
     private IEnumerator PlaceAtSpawn()
     {
         yield return null; // 1フレーム待ってから配置(同期の初期化後)
-        TeleportLocal(SpawnPosition);
+        while (IsSpawned && IsOwner && spawnSlot.Value < 0) yield return null;
+        if (IsSpawned && IsOwner && spawnSlot.Value >= 0) TeleportLocal(SpawnPosition);
+    }
+
+    private void AssignSpawnSlot()
+    {
+        for (int candidate = 0; candidate < 2; candidate++)
+        {
+            bool used = false;
+            foreach (var player in All)
+                if (player != this && player != null && player.IsSpawned && player.IsServer
+                    && player.NetworkManager == NetworkManager && player.SpawnSlot == candidate) { used = true; break; }
+            if (!used) { spawnSlot.Value = candidate; return; }
+        }
+        // 接続上限をここでは変更しない。未割当のまま、誤った場所への仮配置を避ける。
+        Debug.LogError("PlayerStats: 空いている出現枠がありません。");
     }
 
     // 自分のプレイヤーを瞬間移動(オーナーだけが呼べる)
@@ -151,6 +168,9 @@ public partial class PlayerStats : NetworkBehaviour
             rb.position = position;
         }
         transform.position = position;
+        transform.rotation = Quaternion.Euler(0f, spawnFacingYaw, 0f);
+        if (rb != null) rb.rotation = transform.rotation;
+        if (Camera.main != null) Camera.main.GetComponent<CameraFollow>()?.ResetSpawnFacing(spawnFacingYaw);
 
         var nt = GetComponent<ClientNetworkTransform>();
         if (nt != null) nt.Teleport(position, transform.rotation, transform.localScale);
@@ -242,6 +262,9 @@ public partial class PlayerStats : NetworkBehaviour
     private IEnumerator RespawnRoutine()
     {
         yield return new WaitForSeconds(respawnDelay);
+
+        while (IsSpawned && spawnSlot.Value < 0) yield return null;
+        if (!IsSpawned) yield break;
 
         TeleportOwnerRpc(SpawnPosition);
         currentHp.Value = MaxHp;

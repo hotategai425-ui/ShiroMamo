@@ -19,6 +19,13 @@ public class CameraFollow : MonoBehaviour
     // 左右の向き(PlayerController3D が移動方向に使う)
     public float Yaw => yaw;
 
+    // Ownerの初期配置/復活時だけ呼ぶ。通常の視点入力は以後そのまま加算する。
+    public void ResetSpawnFacing(float facingYaw)
+    {
+        yaw = facingYaw;
+        pitch = 0f;
+    }
+
     private void Update()
     {
         var local = PlayerStats.Local;

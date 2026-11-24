@@ -11,6 +11,7 @@ public class MonsterSpawner : MonoBehaviour
     [Tooltip("同時に存在できる最大数")]
     [SerializeField] private int maxAlive = 40;
     [SerializeField] private float spawnScatter = 1.5f;
+    [SerializeField] private FanMapLayout fanMap;
 
     private float timer;
     private bool warned;
@@ -35,7 +36,7 @@ public class MonsterSpawner : MonoBehaviour
 
     private void Spawn(int wave, WaveManager.WaveSetting setting)
     {
-        if (spawnPoints == null || spawnPoints.Length == 0) return;
+        if (fanMap == null && (spawnPoints == null || spawnPoints.Length == 0)) return;
 
         MonsterData data = PickMonster(wave);
         if (data == null) return;
@@ -51,12 +52,37 @@ public class MonsterSpawner : MonoBehaviour
             return;
         }
 
-        Transform point = spawnPoints[Random.Range(0, spawnPoints.Length)];
-        Vector2 scatter = Random.insideUnitCircle * spawnScatter;
-        Vector3 pos = point.position + new Vector3(scatter.x, 1f, scatter.y);
-
+        Vector3 pos = Vector3.zero;
+        if (fanMap == null)
+        {
+            Transform point = spawnPoints[Random.Range(0, spawnPoints.Length)];
+            Vector2 scatter = Random.insideUnitCircle * spawnScatter;
+            pos = point.position + new Vector3(scatter.x, 1f, scatter.y);
+        }
         Monster monster = Instantiate(prefab, pos, Quaternion.identity);
         monster.ServerInit(data, setting);
+        if (fanMap != null)
+        {
+            Physics.SyncTransforms();
+            Bounds bounds = new Bounds();
+            bool found = false;
+            foreach (var collider in monster.GetComponentsInChildren<Collider>())
+            {
+                if (!collider.enabled || collider.isTrigger) continue;
+                if (!found) { bounds = collider.bounds; found = true; }
+                else bounds.Encapsulate(collider.bounds);
+            }
+            Vector3 center = monster.transform.position;
+            float x = found ? Mathf.Max(Mathf.Abs(bounds.min.x - center.x), Mathf.Abs(bounds.max.x - center.x)) : 0.5f;
+            float z = found ? Mathf.Max(Mathf.Abs(bounds.min.z - center.z), Mathf.Abs(bounds.max.z - center.z)) : 0.5f;
+            float bottom = found ? center.y - bounds.min.y : 0.5f;
+            if (!fanMap.TryGetSpawn(Mathf.Sqrt(x * x + z * z), bottom, spawnScatter, out pos))
+            {
+                Destroy(monster.gameObject);
+                return;
+            }
+            monster.transform.position = pos;
+        }
         monster.GetComponent<NetworkObject>().Spawn(true);
     }
 

@@ -1143,6 +1143,7 @@ GameObject:
   - component: {fileID: 1170188743}
   - component: {fileID: 1170188742}
   - component: {fileID: 1170188747}
+  - component: {fileID: 1170188748}
   m_Layer: 0
   m_Name: GameSystems
   m_TagString: Untagged
@@ -1180,14 +1181,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 6db4a5bfdc8cdb6448adc3c4a4535a1d, type: 2}
   - {fileID: 11400000, guid: 4a562f3dc4bb1e34ba48c0e6e5f89013, type: 2}
   - {fileID: 11400000, guid: 5e580f5c97f833f4bba39e4219a843ce, type: 2}
-  spawnPoints:
-  - {fileID: 1490950288}
-  - {fileID: 1620538586}
-  - {fileID: 1115127219}
-  - {fileID: 1610127091}
+  spawnPoints: []
   defaultMonsterPrefab: {fileID: 0}
   maxAlive: 40
   spawnScatter: 1.5
+  fanMap: {fileID: 1170188748}
 --- !u!114 &1170188744
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1231,7 +1229,7 @@ Transform:
   m_GameObject: {fileID: 1170188741}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.9416367, y: 23.30984, z: 13.695244}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1280,6 +1278,28 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 92521a70941d415ea654a128682df9c2, type: 2}
   - {fileID: 11400000, guid: 7729741056864e86ba72821dad8acbbe, type: 2}
   - {fileID: 11400000, guid: 17b5b4421f9888c459b224987f42b2a1, type: 2}
+--- !u!114 &1170188748
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1170188741}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abb01d4628434581840af3d47509b6e0, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  radius: 40
+  openingAngle: 120
+  arcSegments: 40
+  baseHalfWidth: 4
+  rearDepth: 4
+  groundThickness: 0.5
+  wallThickness: 2
+  wallHeight: 32
+  spawnPadding: 0.35
+  showForest: 1
 --- !u!1 &1227999673
 GameObject:
   m_ObjectHideFlags: 0
@@ -1298,7 +1318,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!64 &1227999674
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2130,7 +2150,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9194767748099474111, guid: e8ca4c678f804bb458a46967a8ba6b22, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 3.45
+      value: 3.56
       objectReference: {fileID: 0}
     - target: {fileID: 9194767748099474111, guid: e8ca4c678f804bb458a46967a8ba6b22, type: 3}
       propertyPath: m_LocalPosition.z
