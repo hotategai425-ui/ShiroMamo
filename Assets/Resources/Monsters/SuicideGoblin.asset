@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 329579f7e39f5fc438a07b272ed046b0, type: 3}
+  m_Name: SuicideGoblin
+  m_EditorClassIdentifier: 
+  displayName: "\u81EA\u7206\u30B4\u30D6\u30EA\u30F3"
+  prefab: {fileID: 6924775724114481332, guid: 397a242d54a08b849ba154890fb9e77c, type: 3}
+  maxHp: 30
+  moveSpeed: 3
+  attackDamage: 5
+  attackInterval: 1.5
+  attackRange: 1.5
+  aggroRange: 10
+  scale: 1
+  knockbackSpeed: 8
+  knockbackDuration: 0.2
+  spawnWeight: 1
+  firstWave: 2
+  expReward: 10
+  itemDropChance: 0.15
+  dropTable:
+  - item: {fileID: 11400000, guid: 92521a70941d415ea654a128682df9c2, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: 7729741056864e86ba72821dad8acbbe, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: 17b5b4421f9888c459b224987f42b2a1, type: 2}
+    weight: 1
+  applyTint: 1
+  tintColor: {r: 1, g: 0.45, b: 0, a: 1}

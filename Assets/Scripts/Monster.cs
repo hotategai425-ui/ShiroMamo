@@ -14,6 +14,7 @@ public class Monster : NetworkBehaviour
 
     private MonsterData data;
     private Rigidbody rb;
+    private SuicideGoblinController suicideGoblin;
     private float hp;
     private float damage;
     private float speed;
@@ -33,6 +34,7 @@ public class Monster : NetworkBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        suicideGoblin = GetComponent<SuicideGoblinController>();
         rb.constraints = RigidbodyConstraints.FreezeRotation;
     }
 
@@ -99,6 +101,12 @@ public class Monster : NetworkBehaviour
             return;
         }
         knockbackRemaining = 0f;
+
+        if (suicideGoblin != null)
+        {
+            suicideGoblin.MoveTowardsFortress(speed, data.attackRange);
+            return;
+        }
 
         // 狙う相手を決める(近くの生きているプレイヤー優先 / いなければ砦)
         PlayerStats targetPlayer = null;

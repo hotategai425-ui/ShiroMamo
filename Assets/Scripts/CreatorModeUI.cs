@@ -87,6 +87,9 @@ public class CreatorModeUI : MonoBehaviour
             }
             GUILayout.EndHorizontal();
             GUILayout.Space(8f);
+            if (GUILayout.Button("自爆ゴブリンを1体生成（戦闘中・砦の前方）"))
+                feedback = mode.TrySpawnSuicideGoblin() ? "自爆ゴブリンを生成しました。"
+                    : "生成できません。戦闘中か、砦の前方に空きがあるか確認してください。";
             GUILayout.Label("武器を持ち物に追加（空いている手には自動装備）");
             rarityChoice = GUILayout.Toolbar(rarityChoice, rarityChoices);
             GUILayout.Label("指定したレア度の設定で性能を抽選します。通常抽選ではレア度も抽選します。");

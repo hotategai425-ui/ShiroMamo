@@ -1181,6 +1181,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 6db4a5bfdc8cdb6448adc3c4a4535a1d, type: 2}
   - {fileID: 11400000, guid: 4a562f3dc4bb1e34ba48c0e6e5f89013, type: 2}
   - {fileID: 11400000, guid: 5e580f5c97f833f4bba39e4219a843ce, type: 2}
+  - {fileID: 11400000, guid: aa07528d485a40647a39c3873ba38860, type: 2}
   spawnPoints: []
   defaultMonsterPrefab: {fileID: 0}
   maxAlive: 40

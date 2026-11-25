@@ -73,6 +73,56 @@ public class CreatorMode : MonoBehaviour
         return true;
     }
 
+    public bool TrySpawnSuicideGoblin()
+    {
+        if (!CanUse || Player.IsDead || Player.IsTeamLevelUpPaused) return false;
+        var wave = WaveManager.Instance;
+        if (wave == null || !wave.IsServer || wave.NetworkManager != Player.NetworkManager || wave.Phase != GamePhase.Combat) return false;
+        var fortress = SuicideGoblinController.FindFortress(Player.NetworkManager);
+        var data = Resources.Load<MonsterData>("Monsters/SuicideGoblin");
+        if (fortress == null || data == null || data.prefab == null) return false;
+        var monster = Instantiate(data.prefab);
+        monster.ServerInit(data, wave.CurrentSetting);
+        var shapes = monster.GetComponentsInChildren<Collider>();
+        for (int attempt = 0; attempt < 4; attempt++)
+        {
+            Vector3 position = fortress.transform.position + Vector3.forward * (fortress.Radius + data.attackRange + 4f + attempt * 2f);
+            bool floorFound = false;
+            float floorY = float.NegativeInfinity;
+            foreach (var hit in Physics.RaycastAll(position + Vector3.up * 16f, Vector3.down, 64f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (hit.collider.transform.IsChildOf(monster.transform) || SuicideGoblinController.IsActor(hit.collider) || hit.normal.y < 0.9f) continue;
+                if (hit.point.y > floorY) { floorY = hit.point.y; floorFound = true; }
+            }
+            if (!floorFound) continue;
+            monster.transform.position = new Vector3(position.x, 0f, position.z);
+            Physics.SyncTransforms();
+            float bottom = 0f;
+            foreach (var shape in shapes)
+                if (shape.enabled && !shape.isTrigger) bottom = Mathf.Min(bottom, shape.bounds.min.y);
+            monster.transform.position += Vector3.up * (floorY - bottom + 0.05f);
+            Physics.SyncTransforms();
+            bool blocked = false;
+            foreach (var shape in shapes)
+            {
+                if (!shape.enabled || shape.isTrigger) continue;
+                foreach (var other in Physics.OverlapBox(shape.bounds.center, shape.bounds.extents, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    if (other.transform.IsChildOf(monster.transform)) continue;
+                    if (Physics.ComputePenetration(shape, shape.transform.position, shape.transform.rotation,
+                        other, other.transform.position, other.transform.rotation, out _, out float depth) && depth > 0.001f)
+                    { blocked = true; break; }
+                }
+                if (blocked) break;
+            }
+            if (blocked) continue;
+            monster.NetworkObject.Spawn(true);
+            return true;
+        }
+        Destroy(monster.gameObject);
+        return false;
+    }
+
     private void OnDestroy()
     {
         var current = Instance;
