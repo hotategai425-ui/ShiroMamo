@@ -1,7 +1,7 @@
 using System;
 using Unity.Netcode;
 
-public enum WaveRewardEffect { None = 0, Guardian = 1 }
+public enum WaveRewardEffect { None = 0, Guardian = 1, MultiJump = 2 }
 public enum GuardianActivationStatus { Unowned = 0, Active = 1, OutOfRange = 2, Unavailable = 3 }
 
 // Host snapshots these settings when issuing an offer; later Inspector edits cannot alter that grant.
@@ -53,6 +53,7 @@ public struct GuardianEffectState : INetworkSerializable, IEquatable<GuardianEff
 
 public static class WaveRewardDescription
 {
+    public static string MultiJump => "最大ジャンプ回数が地上を含め2回になります。空中でも新しくSpaceを押してジャンプできます。取得後のレベルアップでジャンプ回数強化が抽選候補になります。重複しません。";
     public static string None(string description) => string.IsNullOrWhiteSpace(description)
         ? "効果なし（試験用）" : "効果なし（試験用）\n" + description;
     public static string Guardian(float outsideDistance, float attackBonus)

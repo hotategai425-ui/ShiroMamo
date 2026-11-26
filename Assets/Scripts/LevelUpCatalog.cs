@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // 廃止した防御の値2は再利用しない。既存アセットと提示IDの意味を維持する。
-public enum UpgradeStat { Attack = 0, MaxHp = 1, CriticalChance = 3, CriticalDamage = 4, AttackSpeed = 5, MoveSpeed = 6, JumpHeight = 7 }
+public enum UpgradeStat { Attack = 0, MaxHp = 1, CriticalChance = 3, CriticalDamage = 4, AttackSpeed = 5, MoveSpeed = 6, JumpHeight = 7, JumpCount = 8 }
 
 [Serializable]
 public class LevelUpOption
@@ -13,6 +13,8 @@ public class LevelUpOption
     public UpgradeStat stat;
     [Min(0f)] public float amount;
     [Min(0f)] public float weight = 1f;
+    [Tooltip("Noneなら条件なし。指定したウェーブ効果を本人が取得した後だけ抽選します。")]
+    public WaveRewardEffect requiredEffect;
 }
 
 [CreateAssetMenu(menuName = "TD/Level Up Catalog", fileName = "LevelUpCatalog")]
@@ -38,6 +40,8 @@ public class LevelUpCatalog : ScriptableObject
                 || !(option.weight > 0f) || float.IsInfinity(option.weight)
                 || !Enum.IsDefined(typeof(UpgradeStat), option.stat) || !ids.Add(option.id)) continue;
             if (option.stat == UpgradeStat.CriticalChance && player.CriticalChance >= 1f) continue;
+            if (option.requiredEffect != WaveRewardEffect.None && !player.HasWaveRewardEffect(option.requiredEffect)) continue;
+            if (option.stat == UpgradeStat.JumpCount && (option.amount != Math.Floor(option.amount) || player.MaxJumpCount == ulong.MaxValue)) continue;
             pool.Add(option);
         }
         var result = new List<UpgradeChoice>();
@@ -53,7 +57,7 @@ public class LevelUpCatalog : ScriptableObject
                 draw -= option.weight;
                 if (draw <= 0) { picked = option; break; }
             }
-            result.Add(new UpgradeChoice { DefinitionId = picked.id, Stat = picked.stat, Amount = picked.amount });
+            result.Add(new UpgradeChoice { DefinitionId = picked.id, Stat = picked.stat, Amount = picked.amount, RequiredEffect = picked.requiredEffect });
             pool.RemoveAll(option => option.stat == picked.stat);
         }
         return result.ToArray();

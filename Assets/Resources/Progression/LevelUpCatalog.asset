@@ -48,3 +48,9 @@ MonoBehaviour:
     stat: 7
     amount: 0.25
     weight: 1
+  - id: 9
+    displayName: ジャンプ回数
+    stat: 8
+    amount: 1
+    weight: 1
+    requiredEffect: 2

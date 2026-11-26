@@ -187,6 +187,7 @@ public class LevelUpChoiceUI : MonoBehaviour
             case UpgradeStat.AttackSpeed: return $"攻撃速度 +{choice.Amount * 100f:0.#}%";
             case UpgradeStat.MoveSpeed: return $"移動速度 +{choice.Amount:0.##}m/s";
             case UpgradeStat.JumpHeight: return $"ジャンプの高さ +{choice.Amount:0.##}m";
+            case UpgradeStat.JumpCount: return $"最大ジャンプ回数 +{choice.Amount:0}回";
             default: return $"+{choice.Amount:0.##}";
         }
     }

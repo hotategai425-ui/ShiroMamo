@@ -171,6 +171,7 @@ public partial class PlayerStats : NetworkBehaviour
             rb.position = position;
         }
         transform.position = position;
+        GetComponent<PlayerController3D>()?.ResetJumpConsumption();
         transform.rotation = Quaternion.Euler(0f, spawnFacingYaw, 0f);
         if (rb != null) rb.rotation = transform.rotation;
         if (Camera.main != null) Camera.main.GetComponent<CameraFollow>()?.ResetSpawnFacing(spawnFacingYaw);

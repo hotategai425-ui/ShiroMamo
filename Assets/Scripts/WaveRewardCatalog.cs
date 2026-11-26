@@ -15,13 +15,13 @@ public class WaveRewardOption
     public bool allowRepeat = true;
     [Min(0f)] public float guardianOutsideDistance = 5f;
     [Min(0f)] public float guardianAttackBonus = 0.25f;
-    public bool HasEffect => effect == WaveRewardEffect.Guardian;
+    public bool HasEffect => effect == WaveRewardEffect.Guardian || effect == WaveRewardEffect.MultiJump;
 
     public WaveRewardGrant Snapshot() => new WaveRewardGrant { DefinitionId = id, Effect = effect,
-        AllowRepeat = allowRepeat && effect != WaveRewardEffect.Guardian,
+        AllowRepeat = allowRepeat && effect == WaveRewardEffect.None,
         OutsideDistance = guardianOutsideDistance, AttackBonus = guardianAttackBonus };
 
-    public bool HasValidEffectSettings => effect == WaveRewardEffect.None || effect == WaveRewardEffect.Guardian
+    public bool HasValidEffectSettings => effect == WaveRewardEffect.None || effect == WaveRewardEffect.MultiJump || effect == WaveRewardEffect.Guardian
         && guardianOutsideDistance >= 0f && !float.IsInfinity(guardianOutsideDistance)
         && guardianAttackBonus >= 0f && !float.IsInfinity(guardianAttackBonus);
 }
@@ -43,8 +43,8 @@ public sealed class WaveRewardCatalog : ScriptableObject
     {
         var option = Find(id);
         if (option == null) return "候補の設定が見つかりません。";
-        return option.HasEffect ? WaveRewardDescription.Guardian(option.guardianOutsideDistance, option.guardianAttackBonus)
-            : WaveRewardDescription.None(option.description);
+        return option.effect == WaveRewardEffect.Guardian ? WaveRewardDescription.Guardian(option.guardianOutsideDistance, option.guardianAttackBonus)
+            : option.effect == WaveRewardEffect.MultiJump ? WaveRewardDescription.MultiJump : WaveRewardDescription.None(option.description);
     }
 
     public int[] Draw(PlayerStats player = null)

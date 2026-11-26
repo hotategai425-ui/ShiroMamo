@@ -17,6 +17,10 @@ public class PlayerController3D : NetworkBehaviour
     private Vector3 blinkDirection;
     private float blinkRemainingDistance;
     private float blinkSpeed;
+    private ulong usedJumps;
+    private bool awaitingGroundSeparation;
+    private float jumpedAtFixedTime;
+    private float supportedAtFixedTime = float.NegativeInfinity;
 
     private void Awake()
     {
@@ -32,6 +36,7 @@ public class PlayerController3D : NetworkBehaviour
         blinkRequested = false;
         nextBlinkTime = 0f;
         blinkRemainingDistance = 0f;
+        ResetJumpConsumption();
         if (IsOwner)
         {
             rb.interpolation = RigidbodyInterpolation.Interpolate;
@@ -88,8 +93,23 @@ public class PlayerController3D : NetworkBehaviour
         Vector2 input = GameInput.Move;
         Vector3 dir = forward * input.y + right * input.x;
 
-        if (jumpRequested && vel.y <= 0.1f && IsGrounded())
-            vel.y = Mathf.Sqrt(2f * Mathf.Max(0f, -Physics.gravity.y) * stats.JumpHeight);
+        bool contact = IsGrounded();
+        if (awaitingGroundSeparation && (!contact || supportedAtFixedTime > jumpedAtFixedTime && vel.y <= 0.1f))
+            awaitingGroundSeparation = false;
+        bool grounded = contact && vel.y <= 0.1f && !awaitingGroundSeparation;
+        if (grounded) usedJumps = 0;
+        else if (!contact && usedJumps == 0) usedJumps = 1; // Walking off uses the ground jump.
+        if (jumpRequested && usedJumps < stats.MaxJumpCount && (grounded || stats.HasMultiJump))
+        {
+            float jumpSpeed = Mathf.Sqrt(2f * Mathf.Max(0f, -Physics.gravity.y) * stats.JumpHeight);
+            if (jumpSpeed > 0f)
+            {
+                vel.y = jumpSpeed;
+                usedJumps++;
+                awaitingGroundSeparation = true;
+                jumpedAtFixedTime = Time.fixedTime;
+            }
+        }
         jumpRequested = false;
 
         // 一人称: 体は常にカメラの向き(左右)に合わせる
@@ -113,6 +133,22 @@ public class PlayerController3D : NetworkBehaviour
             if (hit.rigidbody != rb && hit.normal.y >= 0.5f) return true;
         }
         return false;
+    }
+
+    // Spawn/respawn only; changing maximum count in flight preserves consumption.
+    public void ResetJumpConsumption()
+    {
+        usedJumps = 0;
+        jumpRequested = false;
+        awaitingGroundSeparation = false;
+        supportedAtFixedTime = float.NegativeInfinity;
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        if (!IsSpawned || !IsOwner) return;
+        foreach (var contact in collision.contacts)
+            if (contact.normal.y >= 0.5f) { supportedAtFixedTime = Time.fixedTime; break; }
     }
 
     private void TryBlink(Vector3 direction)

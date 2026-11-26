@@ -35,6 +35,7 @@ public partial class PlayerStats
             if (grant.DefinitionId == id)
                 return grant.Effect == WaveRewardEffect.Guardian
                     ? WaveRewardDescription.Guardian(grant.OutsideDistance, grant.AttackBonus)
+                    : grant.Effect == WaveRewardEffect.MultiJump ? WaveRewardDescription.MultiJump
                     : WaveRewardDescription.None(RewardCatalog?.Find(id)?.description);
         }
         return RewardCatalog != null ? RewardCatalog.GetDescription(id) : "候補の設定が見つかりません。";
@@ -61,7 +62,7 @@ public partial class PlayerStats
 
     internal bool CanReceiveWaveReward(WaveRewardGrant grant) => !nonRepeatableRewardIds.Contains(grant.DefinitionId)
         && (grant.AllowRepeat || !acquiredRewardIds.Contains(grant.DefinitionId))
-        && (grant.Effect != WaveRewardEffect.Guardian || !HasGuardian);
+        && (grant.Effect == WaveRewardEffect.None || !HasWaveRewardEffect(grant.Effect));
 
     public void ChooseWaveReward(ulong ticket, int choiceIndex)
     {

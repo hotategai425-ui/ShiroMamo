@@ -50,6 +50,11 @@ public partial class PlayerStats
 
     private void ApplyWaveRewardEffect(WaveRewardGrant grant)
     {
+        if (grant.Effect == WaveRewardEffect.MultiJump)
+        {
+            multiJump.Value = true;
+            return;
+        }
         if (grant.Effect != WaveRewardEffect.Guardian || HasGuardian) return;
         guardian.Value = new GuardianEffectState { Owned = true, OutsideDistance = grant.OutsideDistance, AttackBonus = grant.AttackBonus };
         RefreshGuardianState();

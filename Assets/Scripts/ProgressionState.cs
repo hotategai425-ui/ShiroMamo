@@ -17,10 +17,11 @@ public struct UpgradeChoice : INetworkSerializable, IEquatable<UpgradeChoice>
     public int DefinitionId;
     public UpgradeStat Stat;
     public float Amount;
+    public WaveRewardEffect RequiredEffect;
     public bool IsValid => DefinitionId > 0 && Amount > 0f;
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
-    { serializer.SerializeValue(ref DefinitionId); serializer.SerializeValue(ref Stat); serializer.SerializeValue(ref Amount); }
-    public bool Equals(UpgradeChoice other) => DefinitionId == other.DefinitionId && Stat == other.Stat && Amount.Equals(other.Amount);
+    { serializer.SerializeValue(ref DefinitionId); serializer.SerializeValue(ref Stat); serializer.SerializeValue(ref Amount); serializer.SerializeValue(ref RequiredEffect); }
+    public bool Equals(UpgradeChoice other) => DefinitionId == other.DefinitionId && Stat == other.Stat && Amount.Equals(other.Amount) && RequiredEffect == other.RequiredEffect;
 }
 
 public struct LevelUpOffer : INetworkSerializable, IEquatable<LevelUpOffer>
@@ -43,13 +44,15 @@ public struct LevelUpOffer : INetworkSerializable, IEquatable<LevelUpOffer>
 public struct PlayerUpgradeBonuses : INetworkSerializable, IEquatable<PlayerUpgradeBonuses>
 {
     public float Attack, MaxHp, CriticalChance, CriticalDamage, AttackSpeed, MoveSpeed, JumpHeight;
+    public ulong JumpCount;
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
         serializer.SerializeValue(ref Attack); serializer.SerializeValue(ref MaxHp);
         serializer.SerializeValue(ref CriticalChance); serializer.SerializeValue(ref CriticalDamage); serializer.SerializeValue(ref AttackSpeed);
         serializer.SerializeValue(ref MoveSpeed); serializer.SerializeValue(ref JumpHeight);
+        serializer.SerializeValue(ref JumpCount);
     }
     public bool Equals(PlayerUpgradeBonuses other) => Attack.Equals(other.Attack) && MaxHp.Equals(other.MaxHp)
         && CriticalChance.Equals(other.CriticalChance) && CriticalDamage.Equals(other.CriticalDamage)
-        && AttackSpeed.Equals(other.AttackSpeed) && MoveSpeed.Equals(other.MoveSpeed) && JumpHeight.Equals(other.JumpHeight);
+        && AttackSpeed.Equals(other.AttackSpeed) && MoveSpeed.Equals(other.MoveSpeed) && JumpHeight.Equals(other.JumpHeight) && JumpCount == other.JumpCount;
 }

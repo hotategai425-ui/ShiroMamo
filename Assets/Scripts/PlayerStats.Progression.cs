@@ -93,6 +93,7 @@ public partial class PlayerStats
         if (!offer.IsValid || offer.Ticket != ticket || choiceIndex < 0 || choiceIndex > 2) return;
         UpgradeChoice choice = offer.GetChoice(choiceIndex);
         if (!choice.IsValid) return;
+        if (choice.RequiredEffect != WaveRewardEffect.None && !HasWaveRewardEffect(choice.RequiredEffect)) return;
         var bonuses = upgradeBonuses.Value;
         switch (choice.Stat)
         {
@@ -103,6 +104,11 @@ public partial class PlayerStats
             case UpgradeStat.AttackSpeed: bonuses.AttackSpeed += choice.Amount; break;
             case UpgradeStat.MoveSpeed: bonuses.MoveSpeed += choice.Amount; break;
             case UpgradeStat.JumpHeight: bonuses.JumpHeight += choice.Amount; break;
+            case UpgradeStat.JumpCount:
+                if (!HasMultiJump || float.IsInfinity(choice.Amount) || choice.Amount != System.Math.Floor(choice.Amount)) return;
+                ulong additional = (double)choice.Amount >= ulong.MaxValue ? ulong.MaxValue : (ulong)choice.Amount;
+                bonuses.JumpCount = SaturatingJumpAdd(bonuses.JumpCount, additional);
+                break;
             default: return;
         }
         float oldMaxHp = MaxHp;

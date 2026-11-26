@@ -43,3 +43,10 @@ MonoBehaviour:
     allowRepeat: 0
     guardianOutsideDistance: 5
     guardianAttackBonus: 0.25
+  - enabled: 1
+    id: 1002
+    displayName: 多段ジャンプ
+    description:
+    weight: 1
+    effect: 2
+    allowRepeat: 0
