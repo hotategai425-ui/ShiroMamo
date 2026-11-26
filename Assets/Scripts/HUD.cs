@@ -193,7 +193,8 @@ public class HUD : MonoBehaviour
                 GUIUtility.ExitGUI();
             }
             DrawEquippedHand(equipment, true, new Rect(20, 66, innerWidth, 46));
-            DrawEquippedHand(equipment, false, new Rect(20, 116, innerWidth, 46));
+            if (!equipment.UsesTwoHandedWeapon)
+                DrawEquippedHand(equipment, false, new Rect(20, 116, innerWidth, 46));
             GUI.Label(new Rect(20, 170, innerWidth, 36), "見出しで降順 ／ 攻撃は本人×倍率・HPは補正 ／ 白枠：装備中・背景：選択中");
 
             float tableWidth = innerWidth - 20; // 縦スクロールバー用の幅を常に確保。
@@ -213,7 +214,7 @@ public class HUD : MonoBehaviour
                     FillRect(row, instance.InstanceId == selectedInventoryId
                         ? new Color(.22f, .30f, .40f) : new Color(.12f, .135f, .16f));
                     if (equipped) DrawWhiteBorder(row);
-                    string hand = instance.InstanceId == leftId ? "左手" : instance.InstanceId == rightId ? "右手" : "";
+                    string hand = EquippedHandLabel(instance.InstanceId, leftId, rightId);
                     // 透明の行ボタン。数値・レア度は後から描き、押下色と独立させる。
                     if (GUI.Button(row, GUIContent.none, GUIStyle.none)) selectedInventoryId = instance.InstanceId;
                     DrawInventoryCells(row, instance, hand, false);
@@ -234,12 +235,13 @@ public class HUD : MonoBehaviour
             try
             {
                 GUI.enabled = previousEnabled && selected.IsValid;
-                if (GUI.Button(new Rect(20, footerY + detailHeight + 58, 200, 46), "左手に装備"))
+                bool twoHanded = selected.Definition != null && selected.Definition.UsesTwoHands;
+                if (GUI.Button(new Rect(20, footerY + detailHeight + 58, twoHanded ? 412 : 200, 46), twoHanded ? "両手に装備" : "左手に装備"))
                 {
                     equipment.EquipWeapon(selected.InstanceId, true);
                     GUIUtility.ExitGUI();
                 }
-                if (GUI.Button(new Rect(232, footerY + detailHeight + 58, 200, 46), "右手に装備"))
+                if (!twoHanded && GUI.Button(new Rect(232, footerY + detailHeight + 58, 200, 46), "右手に装備"))
                 {
                     equipment.EquipWeapon(selected.InstanceId, false);
                     GUIUtility.ExitGUI();
@@ -360,11 +362,11 @@ public class HUD : MonoBehaviour
     {
         var instance = equipment.GetWeaponInstance(leftHand);
         var definition = instance.Definition;
-        string hand = leftHand ? "左手" : "右手";
+        string hand = equipment.UsesTwoHandedWeapon ? "両手" : leftHand ? "左手" : "右手";
         var style = new GUIStyle(GUI.skin.label);
         SetLabelColor(style, WeaponColor(instance));
         GUI.Label(new Rect(area.x, area.y, area.width - 160, area.height),
-            $"{hand}：{(definition != null ? ItemName(definition) + " ［" + RarityLabel(instance.Rarity) + "］" : "装備なし")}", style);
+            $"{hand}：{(definition != null ? ItemName(definition) + " ［" + RarityLabel(instance.Rarity) + "］" : equipment.UsesTwoHandedWeapon ? "装備情報を同期中……" : "装備なし")}", style);
         bool previousEnabled = GUI.enabled;
         try
         {
@@ -528,17 +530,25 @@ public class HUD : MonoBehaviour
 
     private static string WeaponLabel(PlayerStats player, bool leftHand)
     {
+        if (player.Equipment.UsesTwoHandedWeapon && !player.Equipment.IsAttackHandEnabled(leftHand))
+            return "右クリック：叩きつけ（未実装）";
         var instance = player.Equipment.GetWeaponInstance(leftHand);
         var definition = instance.Definition;
         string input = leftHand ? "左クリック" : "右クリック";
+        if (player.Equipment.UsesTwoHandedWeapon && (!instance.IsValid || definition == null))
+            return $"{input}：両手装備の情報を同期中……";
         if (!instance.IsValid || definition == null)
             return $"{input}：素手\n攻撃力 {player.GetAttack(leftHand):0.##}";
-        return $"{input}：{ItemName(definition)} ［{RarityLabel(instance.Rarity)}］\n" +
+        return $"{input}：{ItemName(definition)}{(player.Equipment.UsesTwoHandedWeapon ? "（両手）" : "")} ［{RarityLabel(instance.Rarity)}］\n" +
             (definition.IsShield ? $"防御力 {FormatReduction(DisplayedReduction(instance))}"
                 : $"攻撃力 {player.GetAttack(leftHand):0.##}");
     }
 
     private static string ItemName(ItemData item) => LocalizeWords(item.displayName);
+
+    private static string EquippedHandLabel(ulong instanceId, ulong leftId, ulong rightId) => instanceId == 0 ? ""
+        : instanceId == leftId && instanceId == rightId ? "両手"
+        : instanceId == leftId ? "左手" : instanceId == rightId ? "右手" : "";
 
     private static Color RarityColor(ItemRarity rarity) => rarity == ItemRarity.Common
         ? Color.white : ItemData.GetRarityColor(rarity);

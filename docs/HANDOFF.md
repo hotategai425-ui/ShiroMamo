@@ -2,6 +2,12 @@
 
 更新日 2026-11-26
 
+## 本日の終了・次回再開（2026-11-26）
+
+ユーザーは多段ジャンプを「とても楽しい」「不具合なし」と受入報告。TWOHAND-01は通常攻撃まで実装し、頭/柄が逆だった表示Prefabを修正、ユーザーが「向きはよくなった」と確認。頭が+Y、柄末端が握り原点。Logs/hammer-grip-fix.log:399で実メッシュの向き/bounds/判定保存値を局所確認。両手装備の全操作・別PC通信まで受入済みとは扱わない。
+
+ユーザーの終了指示で本日分をコミット・pushする。担当予約は返却済み。次回候補は地上叩きつけ（90度/5m）。威力/間隔/ノックバック/発動時点など未決定値を整理し、通常攻撃試作から段階的に進める。右攻撃は現在無効、空中叩きつけも未実装。追加Unity試験は行わず既報の確認範囲を保持。
+
 ## 最初に把握すること
 
 最大2人で砦を守る一人称のPCゲーム。将来はPC接続型VRを目指す。2人で接続・開始・プレイできたことはユーザー確認済みだが、その報告は現在の武器機能より前のもの。面白さについてはユーザーから「まだなにもおもしろくない」と報告され、戦闘と装備の基礎を制作中。
@@ -44,6 +50,31 @@ DROP-01限定の基礎作りによるHUD行編集は完了し、今回のHUD.cs�
 ユーザーは「自分で落とした武器は消さずに残す」と承認したと担当から報告。プレイヤー品を次ウェーブ掃除から除外し、敵ドロップの掃除を維持する実装を確認。シーン再起動では消える。最終検証はホスト→参加者→ホストの往復まで成功したが、テスト内でプレイヤー位置同期を無効化した制約がある。
 
 ## 未完了・次の候補
+
+### TWOHAND-01 両手装備とデカハンマー通常攻撃（2026-11-26実装・局所確認済み、試遊待ち）
+
+基礎/UIとも完了報告を受領、今回の全予約返却。基礎はItemData/PlayerEquipment/PlayerAttack/ItemDatabase、新規HammerVisual.prefab/meta・hammer.fbx.meta・Resources/Weapons.metaとHammerData.asset/meta、UIはHUD.csのみ。モデル原本無変更。既存Creator一覧から生成でき、Creatorコード/既存シーン/Prefab/WeaponBlade変更は不要だった。左右InstanceIdペアを1つのNetworkVariableで同期、2H中は左右GetWeaponInstanceが同一個体、GetAttack左のみ有効・右0。ItemDatabase.Awakeで専用Resourceを末尾追加（既存登録時は重複しない）、同版・同資産を使う。
+
+モデル表示は全長1.4mを装備scale0.55で使用（実全長約0.77m）。剣流用倍率1.5/swing0.3/基本間隔0.5。ユーザー追加承認で専用bladeRadius0.45（装備時0.2475m）、柄も太い仮カプセル。ホスト射程3m維持。Common/HP0/スキルなしは試作用。Editor/DevelopmentのHostでF2→武器一覧『デカハンマー（試作）を追加』。自然ドロップなし、右叩きつけ未実装。
+
+基礎のUnity6000.0.46f1隔離コンパイルと短いHost/Client局所確認成功報告（Logs/twohand-local-check.log:887）。装備切替/補正1回/モデル1個/右拒否/2体命中・再送・遮蔽/個体を保つ落下再取得/ID同期等。再取得はOnCollectedServer直接、移動同期無効、API攻撃、同DB共有の制約あり。UIはRoslynコンパイルと8表示条件確認（Logs/CodexTwoHandUIVerified.log:360）。実GUI/実モデル・持ち方/振り心地/製品シーン拾得/別PC・Relay/Buildは未確認。司令塔は保存設定と差分チェックを照合、Unity試験を追加せずユーザー試遊へ返す。コミットpushなし。
+
+ユーザーが配置済みAssets/buki/hammer.fbxを使用し、調査提案の順序で進めることを承認。まず共通両手装備＋左クリック通常攻撃まで。右クリック叩きつけ、空中溜め/急降下、高度射程、正式ドロップ/レア度/スキルは後段で、未決定の性能を確定扱いしない。モデル原本は変更せず、必要なimport設定/表示用Prefabで寸法と向きを調整する。
+
+基礎予約：ItemData.cs、PlayerEquipment.cs、PlayerAttack.cs、必要最小限のWeaponBlade.cs、ItemDatabaseの末尾登録/ハンマー専用ItemData・表示用Prefab/meta・hammer.fbx.meta、CreatorMode.cs/CreatorModeUI.csの専用試用生成入口。ItemInstanceの形式変更や追加ファイル/既存Prefab・シーン変更が必要なら先に調整。通常攻撃は当面既存近接の調整値を流用し、右クリックは素手や通常攻撃として誤発動させず未実装。専用の性能値/固有スキル/共通スキル/自然ドロップを独断で追加しない。共通装備APIとモデル寸法・通常攻撃の流用値を先に報告し、不足判断があればその部分だけ止める。
+
+両手武器は1個体で両枠占有、効果/表示は一度。手動装備は既存左右を解除して持ち物へ保持。片手武器への手動切替は両手武器を解除し指定手だけ装備、反対は素手。両手武器の拾得自動装備は両手空の場合だけ。解除は両枠一括。既存片手装備動作と個体ID・落とす/再取得・ホスト検証を維持。
+
+UI予約：HUD.csの両手装備状態/装備解除操作/持ち物行の最小対応のみ。API実在を照合してから編集。基礎とHUD同時編集なし。モデル/Prefabは基礎が一括担当しキャラ担当への並行編集依頼なし。既存多段ジャンプと文書差分・ユーザーモデルを保持。検証はコンパイル＋短い装備切替/拾得/落下・再取得/一度だけの補正/近接命中と同期確認。大規模回帰・画像生成なし、実操作/持ち方はユーザー試遊。コミットpushは別指示まで不可。
+
+### MULTIJUMP-01（2026-11-26実装・局所確認済み、ユーザー試遊良好）
+
+回数表示なしの多段ジャンプと取得依存のレベル強化解放を実装。SPEC0.47参照。初期ルールは先の推奨案（HUD残数表示は削除）で進め、未確定の追加演出/他能力は作らない。着手前クリーン、両担当は前回完了。基礎予約はPlayerController3D.cs/PlayerStats.cs/PlayerStats.Progression.cs/ProgressionState.cs/LevelUpCatalog.cs/WaveRewardCatalog.cs/WaveRewardEffect.cs/PlayerStats.WaveRewards.cs、既存効果適用口のPlayerStats.Guardian.cs最小分岐、必要新規PlayerStats移動能力partial/meta、Resources/ProgressionのLevelUpCatalog.assetとWaveRewardCatalog.asset。既存ID/enum値を保持し新値追加。UI/HUD/シーン/Prefab/境界/他戦闘/共有文書は変更しない。追加必要は事前調整。
+
+UI予約はLevelUpChoiceUI.csの新ジャンプ回数強化の説明分岐のみ。基礎API/enum利用可能を司令塔確認後に編集。WaveRewardChoiceUIは既存説明APIのまま利用し変更不要なら触らない。HUD残数/最大数/新アイコン/音/演出追加なし。
+
+基礎は取得・最大回数同期/整数加算・共通取得条件APIと候補設定・着地/歩き落下/復活の消費管理を担当。最初にAPIと具体ID/条件/接地リセットの最小案を短く報告し、確定範囲から進める。試験はコンパイルと変更箇所の短い取得/解放/地空ジャンプ/着地/独立同期確認だけ。全体回帰/画像/長大テスト追加なし。実Space連打/落下/壁/ダッシュ併用と片方取得はユーザー試遊。ゲーム上無上限に伴う32m壁越えは別途判断で勝手に能力制限/マップ変更しない。コミットpushは別指示まで不可。基礎への実装・UIへの準備依頼とも送信成功。
+
 
 ### GUARDIAN-01 守護者（2026-11-26実装・局所確認済み、ユーザー試遊良好）
 
@@ -489,3 +520,23 @@ guardian-local-check.log:967のGUARDIAN SNAPSHOT DAMAGE OWNER AND CATALOG LOCAL 
 ### 2026-11-26 保存対象
 
 ユーザーのコミット・push指示を受領。今回の対象はウェーブ終了個人3択・Inspector調整カタログ・守護者の効果/表示と共有文書。両担当の予約は返却済み、ユーザー試遊は順調/問題報告なし。以前の未コミット/試遊待ちは各報告時点の状態で、最新受入を優先する。別PC/Relay/配布Build等の未確認は維持。追加自動テストなし。
+
+
+### MULTIJUMP契約案の司令塔確認
+
+MultiJump効果2/報酬ID1002、JumpCount強化値8/候補ID9(amount1/weight1/requiredEffect=MultiJump)、LevelUpOption.requiredEffectとHasWaveRewardEffect共通条件、提示snapshot/Host受理再検証の案を了承。OwnerのHasMultiJump/MaxJumpCount、消費/追加はulongで技術的桁あふれだけ飽和。ゲーム上上限なし。UIへ整数Amount保証を伝えるため設定検証と実API利用可能報告を基礎へ依頼。低天井で離陸プローブが離れない場合も回復不能にしない状態整合を確認する。回数HUDなし、追加大規模試験なし。
+
+
+### MULTIJUMP UI接続
+
+MultiJump=2/JumpCount=8、HasMultiJump/MaxJumpCount(ulong)/HasWaveRewardEffect、LevelUpOption.requiredEffect/UpgradeChoice.RequiredEffectとカタログIDを実ファイル照合。Amountは既存float共用だが単位は回で、抽選/Host受理で正整数・有限を保証する契約。UIへLevelUpChoiceUIの説明1分岐だけ実装依頼済み。基礎コンパイル/局所確認はこの時点で進行中。ProjectSettings/ShaderGraphSettings.assetに担当外差分があり、基礎も編集していないと報告。勝手に戻したり今回実装へ混ぜたりせず保持する。
+
+### MULTIJUMP-01完了照合
+
+基礎は予約内のPlayerController/PlayerStats/Progression/両Catalog/WaveRewardEffect/取得処理と既存効果適用口を変更、新規PlayerStats.MovementAbilities.cs/meta。UIはLevelUpChoiceUIの説明1行だけ。両担当の今回予約を解除し、SPEC0.48へ現行API/制約を反映。コンパイルとmultijump-local-fixed.log:947の31項目成功、CodexMultiJumpUIVerified.txtの説明確認を司令塔で照合、再実行なし。詳細な未確認はSPEC末尾。基礎が未編集と報告したShaderGraphSettingsは現在statusには出ていないとの報告、勝手な復元/保存は行っていない。
+
+ユーザー試遊：波報酬で多段ジャンプを取得し地上→空中/落下中のSpace押し直し、着地で回復、壁へ接触だけでは回復しない、ダッシュとの併用を確認。取得後のレベルでジャンプ回数+1が出て最大数が増えるか、可能なら片方だけ取得してもう一方は増えないことも確認。回数HUDなしの手触りを優先。設定はWaveRewardCatalog ID1002、LevelUpCatalog ID9（既存IDは変更しない）。通常再戦/参加者取得・別PCは試験未確認。無制限多段による32m境界越えは別判断とし今回は変更なし。コミットpushは指示待ち。
+
+### MULTIJUMP-01 ユーザー試遊受入（2026-11-26）
+
+試遊依頼後、ユーザーが『とても楽しいです』『不具合はありませんでした』と報告。今回の試遊は楽しさを確認・不具合報告なしとして受入し、現在の操作感を当面の基準とする。実施した個別ケース/通信環境は未共有のため、参加者取得・2人/別PC/Relayなど未確認を確認済みへ広げない。高高度の32m境界越えは既知の別課題として維持。追加自動試験なし。コミットpushは別途指示待ち。

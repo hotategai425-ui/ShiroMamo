@@ -17,6 +17,13 @@ public class ItemDatabase : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        var hammer = Resources.Load<ItemData>("Weapons/HammerData");
+        if (hammer != null && (items == null || Array.IndexOf(items, hammer) < 0))
+        {
+            int count = items == null ? 0 : items.Length;
+            Array.Resize(ref items, count + 1);
+            items[count] = hammer;
+        }
     }
 
     public static ItemData Get(int index)

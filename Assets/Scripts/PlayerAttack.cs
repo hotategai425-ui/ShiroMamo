@@ -73,6 +73,7 @@ public class PlayerAttack : NetworkBehaviour
     // 追跡入力はこの戻り値を使ってSubmitMeleePoseへ姿勢を送れる。
     public int BeginAttack(bool leftHand, Vector3 aim)
     {
+        if (!stats.Equipment.IsAttackHandEnabled(leftHand)) return 0;
         if (!IsSpawned || !IsOwner || !CanAttack() || stats.Equipment.IsControlBlocked) return 0;
         if (!(aim.sqrMagnitude > 0f) || float.IsInfinity(aim.sqrMagnitude)) return 0;
         ItemData weapon = stats.Equipment.GetWeapon(leftHand);
@@ -90,6 +91,7 @@ public class PlayerAttack : NetworkBehaviour
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
     private void AttackRpc(bool leftHand, Vector3 aim, int attackId)
     {
+        if (!stats.Equipment.IsAttackHandEnabled(leftHand)) return;
         if (!CanAttack()) return;
         ref int lastAccepted = ref (leftHand ? ref lastAcceptedLeftAttackId : ref lastAcceptedRightAttackId);
         if (attackId <= 0 || attackId <= lastAccepted) return;

@@ -1,6 +1,14 @@
 # ShiroMamo 現行技術仕様
 
-更新日 2026-11-26 / 版 0.46
+更新日 2026-11-26 / 版 0.49
+
+## TWOHAND-01 両手装備・デカハンマー通常攻撃（実装・局所確認済み、試遊待ち）
+
+ItemData.handedness（OneHanded=0/TwoHanded=1）とUsesTwoHandsで装備占有を指定。PlayerEquipmentはHandEquipmentStateの左右InstanceIdを単一NetworkVariableで更新。2Hは同じ1個体IDで両枠占有、手動装備で元の左右武器を持ち物に保持し解除。1Hへの手動切替では2H解除後に指定側だけ装備、反対素手。一括解除・落とすも1個体。2Hの自動装備は両手空だけ。片手武器の既存ルールを維持。
+
+UsesTwoHandedWeapon/TwoHandedWeaponInstance/IsAttackHandEnabled(bool)公開。2H時GetWeaponInstanceは左右同個体、既存EquipWeapon/DropWeapon要求は維持。効果/モデル/WeaponBladeは一度だけ適用。今回左通常攻撃のみ有効、GetAttack(false)=0、Owner開始とHost RPCで右入力拒否。HUDは両手装備と一括操作を表示し右叩きつけを未実装と明示。
+
+Resources/Weapons/HammerDataをItemDatabase.Awakeで末尾追加、既存index維持・重複登録拒否。自然ドロップ対象外、既存Creator一覧から生成。提供hammer.fbxは原本維持、HammerVisual.prefabで向き/握り原点/寸法を調整。通常攻撃は既存近接軌跡/複数命中/遮蔽/3m検証を流用。試作用固定Common/倍率1.5/HP0/スキルなし、swing0.3、scale0.55、bladeBaseY0.2/TipY1.4、ユーザー承認のbladeRadius0.45。基本攻撃間隔0.5を流用し既存速度補正適用。柄も太いカプセル近似。右叩きつけと空中動作は後段。検証限界はHANDOFF参照。
 
 EQUIP-02は基礎とUIの実装・隔離検証が完了。本人攻撃力×武器倍率、盾の常時軽減、盾バッシュを現行仕様とする。実画面・実入力・通常移動同期込みの戦闘と受け渡し、別PC/Relay/ビルドは未確認。詳細な検証条件はHANDOFF.mdを参照する。
 
@@ -17,6 +25,16 @@ EQUIP-02は基礎とUIの実装・隔離検証が完了。本人攻撃力×武�
 開発者向けの実装・保存値・APIの参照先。読み始めは[引き継ぎ](HANDOFF.md)、遊び方とゲーム内容は[ゲーム仕様書](GAME_SPEC.md)、過去の作業と検証ログの詳細は[履歴](CHANGELOG.md)を参照する。
 
 この文書の「実装済み」はコード・シーン・アセットで存在を確認した範囲。実操作・通信での確認状況はHANDOFF.mdに記録する。数値は現在の調整値で、最終バランスを確定したものではない。変更前に対象ファイルの最新状態と照合する。
+
+## MULTIJUMP-01 多段ジャンプと条件付き強化解放（2026-11-26実装・局所確認済み、試遊待ち）
+
+ユーザーが仕様共有後、HUD回数表示を不要と指定し実装承認。ウェーブ報酬の多段ジャンプ取得で本人の最大ジャンプ回数1→2、着地で回復。空中/落下中の新Space押下ごとに地上と同じ上向き初速へ置換し、既存JumpHeight強化を地上/空中へ共用。押しっぱなし連射や空中ダッシュ仕様変更はしない。試合中保持・再戦リセット。
+
+取得済み本人だけレベルアップの「ジャンプ回数+1」候補を解放し、取得ごと最大回数+1。既存7強化/ジャンプ力は維持。ゲーム上の回数上限は設けず、整数の桁あふれ等は安全に扱う。必要能力の取得を候補側に指定し、将来別能力にも使える単純な条件構成にする。提示済みレベル3択は差し替えず、取得後の新規抽選から反映する。ホストの抽選/選択検証と本人移動/位置同期を維持する。
+
+初期ルールは司令塔推奨案（回数表示以外）で進める：能力自体の重複不可/取得後候補除外、新安定ID・初期weight1、追加エフェクト/音なし。足場から歩いて落下したら地上1回分を消費扱いとし追加回数だけ使用可。空中で最大回数が増えたら消費済み回数を維持し増分を使用可。実際の着地なら被ダメージ等の原因に関係なく回復、壁接触/離陸直後の残存接地判定では回復しない。初期/復活は消費リセット。HUDの残数/最大数表示は作らない。選択肢の名前・効果説明だけ整合する。
+
+境界の高さ32mは有限であり、回数無制限と組み合わせた高高度からの場外移動防止は別課題。今回勝手に回数制限や広範囲の境界変更を足さず、必要な対策は司令塔へ報告する。武器/敵/ダメージ/守護者/報酬停止処理の仕様は維持する。
 
 ## GUARDIAN-01 守護者（2026-11-26実装・局所確認済み、試遊待ち）
 
@@ -512,3 +530,8 @@ GUARDIAN-01現行契約：BaseAttackPowerを分離しAttackPowerへGuardianAttac
 設定はAssets/Resources/Progression/WaveRewardCatalog.assetの新安定ID1001。effect=Guardian、guardianOutsideDistance=5、guardianAttackBonus=0.25、weight=1。既存ID1/2/3はNone/繰返し可。提示時の効果/非重複/値をHostがticket付きsnapshot保存し選択へ適用、GetWaveRewardDescription(id)はその説明、未同期は同期中。Noneは任意説明でも効果なし（試験用）prefix。取得値は試合内保存しInspector変更は次提示から反映。取得済みGuardianの同ID/同効果別IDを抽選/RPCで除外し、取得時非重複IDは後の設定変更でも再取得解禁しない。
 
 HUDは取得済みだけ小1行で発動中/範囲外/待機中を表示。選択画面は効果あり/なしの混在案内とsnapshot説明へ変更、既存入力/履歴/配置は維持。検証：guardian-local-check.log:967のGUARDIAN SNAPSHOT DAMAGE OWNER AND CATALOG LOCAL CHECK PASSED（担当の30局所確認）とCodexGuardianUIVerifiedの6件成功を司令塔で照合。基礎+UIコンパイル、境界7.5/7.501・未取得/他人・保存値・Owner同期・抽選除外・毒の保存基準/反射非影響・死亡復活/砦消滅・新Player初期化を確認した報告。API攻撃/座標設定/合成UI状態を用い、自然毒tick/実マウス軌跡/製品R再戦を再確認したものではない。実クリック/画面/距離感/別PC/Relay/Buildは未確認。大規模回帰/画像生成/司令塔Unity再実行なし。
+MULTIJUMP-01現行契約：WaveRewardEffect.MultiJump=2、報酬ID1002はweight1/非重複、UpgradeStat.JumpCount=8・レベルID9はamount1/weight1/requiredEffect=MultiJump。LevelUpOption.requiredEffectとPlayerStats.HasWaveRewardEffectで共通条件判定し、UpgradeChoice.RequiredEffectも提示snapshotに含めHost受理時検証。既存IDと7候補/JumpHeightは維持。正整数Amountだけ抽選・受理、取得前の提示は差替えなし。
+
+PlayerStats.MovementAbilitiesがHasMultiJump/MaxJumpCount(ulong)を公開。取得前1、取得後2+個人強化回数、技術的桁あふれのみ飽和。消費数はOwner移動処理で管理し、初期/復活Teleportでリセット。上昇/落下中の新Spaceで同JumpHeight初速、着地で回復、歩き落下は1消費扱い。壁/離陸プローブ残りでは回復させず、低天井でも新しい床支持で回復。既存空中ダッシュは維持、HUD回数表示なし。LevelUIはJumpCount説明1行だけ追加。
+
+担当のUnity6000.0.46f1隔離UI込みコンパイル、Logs/multijump-local-fixed.log:947のMULTIJUMP OWNER CATALOG INPUT PHYSICS LOCAL CHECK PASSED（31局所確認）とCodexMultiJumpUIVerified.txtの説明成功を司令塔で照合。Host取得/Client未取得、候補解放・無効値、ジャンプ初速/入力/接地/低天井/ダッシュ/空中最大増加、技術桁飽和、Teleportリセット等を確認した報告。合成入力・私有局所呼出し・座標設定・一部Physics.Simulateの試験で、実Space/本番scene/通常移動同期/別PC/Relay/Build・参加者本人取得・死亡復活全体/実R再戦は未確認。提示維持/再取得除外の一部はコード照合。32m境界の高高度越えは既知の別課題。追加大規模試験/画像/司令塔Unity再実行なし。

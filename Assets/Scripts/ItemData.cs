@@ -4,6 +4,7 @@ using UnityEngine;
 public enum ItemSlot { Weapon, Armor }
 public enum ItemRarity { Common, Rare, Epic }
 public enum WeaponAttackType { Melee = 0, Projectile = 1, ShieldBash = 2 }
+public enum WeaponHandedness { OneHanded = 0, TwoHanded = 1 }
 
 [Serializable]
 public class WeaponRarityRoll
@@ -31,6 +32,8 @@ public class ItemData : ScriptableObject
 
     [Header("武器の攻撃方式")]
     public WeaponAttackType attackType = WeaponAttackType.Melee;
+    public WeaponHandedness handedness;
+    public bool UsesTwoHands => handedness == WeaponHandedness.TwoHanded;
     public bool IsShield => attackType == WeaponAttackType.ShieldBash;
     public bool IsMeleeAttack => attackType == WeaponAttackType.Melee || IsShield;
     public MagicProjectile projectilePrefab;

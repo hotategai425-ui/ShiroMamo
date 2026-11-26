@@ -1,12 +1,19 @@
 using Unity.Netcode;
 using UnityEngine;
 
-// 武器は拾った順に保管する。左右の装備枠は持ち物の番号を参照する。
+public struct HandEquipmentState : INetworkSerializable, System.IEquatable<HandEquipmentState>
+{
+    public ulong LeftInstanceId, RightInstanceId;
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    { serializer.SerializeValue(ref LeftInstanceId); serializer.SerializeValue(ref RightInstanceId); }
+    public bool Equals(HandEquipmentState other) => LeftInstanceId == other.LeftInstanceId && RightInstanceId == other.RightInstanceId;
+}
+
+// Both occupied hands are committed and synchronized as one instance-ID pair.
 public class PlayerEquipment : NetworkBehaviour
 {
     private NetworkList<ItemInstance> weapons;
-    private NetworkVariable<int> rightWeaponIndex = new NetworkVariable<int>(-1);
-    private NetworkVariable<int> leftWeaponIndex = new NetworkVariable<int>(-1);
+    private NetworkVariable<HandEquipmentState> hands = new();
     private NetworkVariable<int> armorIndex = new NetworkVariable<int>(-1);
 
     private GameObject leftVisual;
@@ -19,8 +26,11 @@ public class PlayerEquipment : NetworkBehaviour
     public bool IsControlBlocked => IsInventoryOpen || CreatorMode.IsOpenFor(this)
         || GetComponent<PlayerStats>().IsTeamLevelUpPaused;
     public int WeaponCount => weapons == null ? 0 : weapons.Count;
-    public ItemData RightWeapon => GetInventoryWeapon(rightWeaponIndex.Value);
-    public ItemData LeftWeapon => GetInventoryWeapon(leftWeaponIndex.Value);
+    public ItemData RightWeapon => GetInventoryWeapon(GetEquippedWeaponIndex(false));
+    public ItemData LeftWeapon => GetInventoryWeapon(GetEquippedWeaponIndex(true));
+    public bool UsesTwoHandedWeapon => hands.Value.LeftInstanceId != 0 && hands.Value.LeftInstanceId == hands.Value.RightInstanceId;
+    public ItemInstance TwoHandedWeaponInstance => UsesTwoHandedWeapon ? GetWeaponInstance(true) : default;
+    public bool IsAttackHandEnabled(bool leftHand) => !UsesTwoHandedWeapon || leftHand;
     public ItemData Armor => ItemDatabase.Get(armorIndex.Value);
 
     public ItemData GetWeapon(bool leftHand) => leftHand ? LeftWeapon : RightWeapon;
@@ -36,6 +46,7 @@ public class PlayerEquipment : NetworkBehaviour
     public float TotalDefense => 0f;
     public float GetWeaponAttackMultiplier(bool leftHand)
     {
+        if (!IsAttackHandEnabled(leftHand)) return 0f;
         var instance = GetWeaponInstance(leftHand);
         if (!instance.IsValid) return 1f;
         return float.IsNaN(instance.AttackMultiplier) || float.IsInfinity(instance.AttackMultiplier) ? 0f : Mathf.Max(0f, instance.AttackMultiplier);
@@ -43,10 +54,11 @@ public class PlayerEquipment : NetworkBehaviour
     public float IncomingDamageMultiplier => (1f - GetShieldReduction(true)) * (1f - GetShieldReduction(false));
     private float GetShieldReduction(bool leftHand)
     {
+        if (!IsAttackHandEnabled(leftHand)) return 0f;
         var instance = GetWeaponInstance(leftHand);
         return instance.Definition != null && instance.Definition.IsShield ? ItemInstance.SanitizeRate(instance.DamageReductionRate) : 0f;
     }
-    public float TotalMaxHp => GetWeaponInstance(true).MaxHpBonus + GetWeaponInstance(false).MaxHpBonus + (Armor?.maxHpBonus ?? 0f);
+    public float TotalMaxHp => GetWeaponInstance(true).MaxHpBonus + (UsesTwoHandedWeapon ? 0f : GetWeaponInstance(false).MaxHpBonus) + (Armor?.maxHpBonus ?? 0f);
 
     private void Awake()
     {
@@ -63,7 +75,7 @@ public class PlayerEquipment : NetworkBehaviour
 
     public void CloseInventory() => IsInventoryOpen = false;
 
-    public int GetEquippedWeaponIndex(bool leftHand) => leftHand ? leftWeaponIndex.Value : rightWeaponIndex.Value;
+    public int GetEquippedWeaponIndex(bool leftHand) => FindWeapon(leftHand ? hands.Value.LeftInstanceId : hands.Value.RightInstanceId);
 
     public ItemData GetInventoryWeapon(int index)
     {
@@ -76,11 +88,12 @@ public class PlayerEquipment : NetworkBehaviour
         return weapons[index];
     }
 
-    public WeaponSkillLoadout GetWeaponSkills(bool leftHand) => GetWeaponInstance(leftHand).Skills;
+    public WeaponSkillLoadout GetWeaponSkills(bool leftHand) => IsAttackHandEnabled(leftHand) ? GetWeaponInstance(leftHand).Skills : default;
     public int EquippedReflectCount => GetEquippedReflectCount(true) + GetEquippedReflectCount(false);
 
     private int GetEquippedReflectCount(bool leftHand)
     {
+        if (!IsAttackHandEnabled(leftHand)) return 0;
         var item = GetWeaponInstance(leftHand);
         return item.Definition != null && item.Definition.IsShield ? item.Skills.Count(WeaponSkillId.Reflect) : 0;
     }
@@ -105,17 +118,28 @@ public class PlayerEquipment : NetworkBehaviour
         int inventoryIndex = instanceId == 0 ? -1 : FindWeapon(instanceId);
         if (instanceId != 0 && inventoryIndex < 0) return;
 
-        NetworkVariable<int> target = leftHand ? leftWeaponIndex : rightWeaponIndex;
-        NetworkVariable<int> other = leftHand ? rightWeaponIndex : leftWeaponIndex;
-        if (target.Value == inventoryIndex) return;
-        // 反対の手に持っている個体を選んだ場合は、左右を入れ替える。
-        if (inventoryIndex >= 0 && other.Value == inventoryIndex) other.Value = target.Value;
-        target.Value = inventoryIndex;
+        var state = hands.Value;
+        if (instanceId != 0 && GetInventoryWeapon(inventoryIndex).UsesTwoHands)
+            state = new HandEquipmentState { LeftInstanceId = instanceId, RightInstanceId = instanceId };
+        else
+        {
+            if (UsesTwoHandedWeapon) state = default;
+            ulong previous = leftHand ? state.LeftInstanceId : state.RightInstanceId;
+            if (instanceId != 0 && (leftHand ? state.RightInstanceId : state.LeftInstanceId) == instanceId)
+            {
+                if (leftHand) state.RightInstanceId = previous; else state.LeftInstanceId = previous;
+            }
+            if (leftHand) state.LeftInstanceId = instanceId; else state.RightInstanceId = instanceId;
+        }
+        if (state.Equals(hands.Value)) return;
+        GetComponent<PlayerAttack>()?.CancelEquipmentAttacks();
+        hands.Value = state;
         GetComponent<PlayerStats>().ClampHp();
     }
 
     private int FindWeapon(ulong instanceId)
     {
+        if (instanceId == 0) return -1;
         for (int i = 0; i < WeaponCount; i++)
             if (weapons[i].InstanceId == instanceId) return i;
         return -1;
@@ -139,16 +163,12 @@ public class PlayerEquipment : NetworkBehaviour
         if (!DropManager.Instance.TryDropItem(position, weapons[index], OwnerClientId)) return;
 
         GetComponent<PlayerAttack>()?.CancelEquipmentAttacks();
-        rightWeaponIndex.Value = IndexAfterRemoval(rightWeaponIndex.Value, index);
-        leftWeaponIndex.Value = IndexAfterRemoval(leftWeaponIndex.Value, index);
+        var state = hands.Value;
+        if (state.LeftInstanceId == instanceId) state.LeftInstanceId = 0;
+        if (state.RightInstanceId == instanceId) state.RightInstanceId = 0;
+        hands.Value = state;
         weapons.RemoveAt(index);
         stats.ClampHp();
-    }
-
-    private static int IndexAfterRemoval(int equipped, int removed)
-    {
-        if (equipped == removed) return -1;
-        return equipped > removed ? equipped - 1 : equipped;
     }
 
     // ホストだけが呼ぶ(ItemPickup から)
@@ -172,11 +192,15 @@ public class PlayerEquipment : NetworkBehaviour
             for (int i = 0; i < weapons.Count; i++)
                 if (weapons[i].InstanceId == instance.InstanceId) return;
             weapons.Add(instance);
-            if (RightWeapon == null || LeftWeapon == null)
+            bool bothEmpty = hands.Value.LeftInstanceId == 0 && hands.Value.RightInstanceId == 0;
+            if (item.UsesTwoHands ? bothEmpty : RightWeapon == null || LeftWeapon == null)
             {
                 bool equipLeft = RightWeapon != null;
-                NetworkVariable<int> emptyHand = equipLeft ? leftWeaponIndex : rightWeaponIndex;
-                emptyHand.Value = weapons.Count - 1;
+                var state = hands.Value;
+                if (item.UsesTwoHands) state = new HandEquipmentState { LeftInstanceId = instance.InstanceId, RightInstanceId = instance.InstanceId };
+                else if (equipLeft) state.LeftInstanceId = instance.InstanceId;
+                else state.RightInstanceId = instance.InstanceId;
+                hands.Value = state;
                 stats.ClampHp();
                 stats.Notify($"Equipped ({(equipLeft ? "Left" : "Right")}): {instance.Rarity} {item.displayName}");
                 return;
@@ -213,7 +237,7 @@ public class PlayerEquipment : NetworkBehaviour
         }
 
         ItemData left = LeftWeapon;
-        ItemData right = RightWeapon;
+        ItemData right = UsesTwoHandedWeapon ? null : RightWeapon;
         if (visualParent != parent || displayedLeft != left)
         {
             RemoveVisual(ref leftVisual);
@@ -244,8 +268,8 @@ public class PlayerEquipment : NetworkBehaviour
         var anchor = new GameObject(side < 0f ? "Left Weapon" : "Right Weapon");
         anchor.transform.SetParent(parent, false);
         anchor.transform.localPosition = IsOwner
-            ? new Vector3(side * 0.38f, -0.56f, 0.85f) + weapon.heldPositionOffset
-            : new Vector3(side * 0.65f, -0.45f, 0.32f);
+            ? new Vector3(weapon.UsesTwoHands ? 0f : side * 0.38f, -0.56f, 0.85f) + weapon.heldPositionOffset
+            : new Vector3(weapon.UsesTwoHands ? 0f : side * 0.65f, -0.45f, 0.32f);
         anchor.transform.localRotation = Quaternion.Euler(20f, 0f, -side * 12f);
         bool melee = weapon.IsMeleeAttack;
         anchor.transform.localScale = Vector3.one * (melee ? Mathf.Max(0.1f, weapon.meleeScale) : (IsOwner ? 0.55f : 1f));
