@@ -39,7 +39,9 @@ public class WaveManager : NetworkBehaviour
     // フェーズ終了時刻(サーバー時刻)。毎フレーム同期せず、各自が残り時間を計算する
     private NetworkVariable<double> phaseEndTime = new NetworkVariable<double>(0.0);
     private NetworkVariable<double> levelUpPauseStartedAt = new NetworkVariable<double>(-1.0);
+    // Compatibility name: the clock is paused for either shared choice reason.
     public bool IsLevelUpPaused => levelUpPauseStartedAt.Value >= 0;
+    private bool awaitingWaveReward;
 
     public int CurrentWave => wave.Value;
     public GamePhase Phase => phase.Value;
@@ -97,7 +99,12 @@ public class WaveManager : NetworkBehaviour
     {
         if (Phase == GamePhase.Combat)
         {
-            SetPhase(GamePhase.Collect);
+            if (CurrentWave < TotalWaves)
+            {
+                awaitingWaveReward = true;
+                TeamProgression.For(NetworkManager).BeginWaveRewards(CurrentWave);
+            }
+            else SetPhase(GamePhase.Collect);
         }
         else if (Phase == GamePhase.Collect)
         {
@@ -124,6 +131,13 @@ public class WaveManager : NetworkBehaviour
                 phaseEndTime.Value += now - levelUpPauseStartedAt.Value;
             levelUpPauseStartedAt.Value = -1;
         }
+    }
+
+    internal void CompleteWaveRewardSelection()
+    {
+        if (!IsServer || !IsSpawned || !awaitingWaveReward || IsLevelUpPaused || Phase != GamePhase.Combat) return;
+        awaitingWaveReward = false;
+        SetPhase(GamePhase.Collect);
     }
 
     // 砦が壊れたとき Fortress から呼ばれる(ホストのみ)

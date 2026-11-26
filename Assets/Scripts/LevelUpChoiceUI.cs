@@ -33,7 +33,7 @@ public class LevelUpChoiceUI : MonoBehaviour
 
     private void RefreshInputGate()
     {
-        bool visible = player != null && player.IsSpawned && player.IsOwner && player.IsTeamLevelUpPaused;
+        bool visible = player != null && player.IsSpawned && player.IsOwner && player.IsLevelUpChoicePaused;
         ulong ticket = visible && player.CurrentLevelUpOffer.IsValid ? player.CurrentLevelUpOffer.Ticket : 0;
         AdvanceInputGate(ticket, ChoiceInputHeld(), Application.isFocused, Time.unscaledTimeAsDouble, Time.frameCount);
     }
@@ -103,7 +103,7 @@ public class LevelUpChoiceUI : MonoBehaviour
 
     private void OnGUI()
     {
-        if (player == null || !player.IsSpawned || !player.IsOwner || !player.IsTeamLevelUpPaused) return;
+        if (player == null || !player.IsSpawned || !player.IsOwner || !player.IsLevelUpChoicePaused) return;
         if (skin == null)
         {
             skin = Instantiate(GUI.skin);

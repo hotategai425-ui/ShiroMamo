@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd1bf9ec46c14277a7720705bffb4653, type: 3}
+  m_Name: WaveRewardCatalog
+  m_EditorClassIdentifier:
+  options:
+  - enabled: 1
+    id: 1
+    displayName: テスト候補A
+    description: 選択と取得記録を確認する候補です。能力への効果はありません。
+    weight: 1
+    effect: 0
+    allowRepeat: 1
+  - enabled: 1
+    id: 2
+    displayName: テスト候補B
+    description: 選択と取得記録を確認する候補です。能力への効果はありません。
+    weight: 1
+    effect: 0
+    allowRepeat: 1
+  - enabled: 1
+    id: 3
+    displayName: テスト候補C
+    description: 選択と取得記録を確認する候補です。能力への効果はありません。
+    weight: 1
+    effect: 0
+    allowRepeat: 1
+  - enabled: 1
+    id: 1001
+    displayName: 守護者
+    description:
+    weight: 1
+    effect: 1
+    allowRepeat: 0
+    guardianOutsideDistance: 5
+    guardianAttackBonus: 0.25

@@ -6,9 +6,10 @@ public struct TeamProgressionState : INetworkSerializable, IEquatable<TeamProgre
     public int Level;
     public float Exp;
     public bool Paused;
+    public TeamPauseReason PauseReasons;
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
-    { serializer.SerializeValue(ref Level); serializer.SerializeValue(ref Exp); serializer.SerializeValue(ref Paused); }
-    public bool Equals(TeamProgressionState other) => Level == other.Level && Exp.Equals(other.Exp) && Paused == other.Paused;
+    { serializer.SerializeValue(ref Level); serializer.SerializeValue(ref Exp); serializer.SerializeValue(ref Paused); serializer.SerializeValue(ref PauseReasons); }
+    public bool Equals(TeamProgressionState other) => Level == other.Level && Exp.Equals(other.Exp) && Paused == other.Paused && PauseReasons == other.PauseReasons;
 }
 
 public struct UpgradeChoice : INetworkSerializable, IEquatable<UpgradeChoice>

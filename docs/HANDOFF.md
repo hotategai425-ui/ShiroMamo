@@ -1,6 +1,6 @@
 # ShiroMamo 引き継ぎ
 
-更新日 2026-11-25
+更新日 2026-11-26
 
 ## 最初に把握すること
 
@@ -44,6 +44,28 @@ DROP-01限定の基礎作りによるHUD行編集は完了し、今回のHUD.cs�
 ユーザーは「自分で落とした武器は消さずに残す」と承認したと担当から報告。プレイヤー品を次ウェーブ掃除から除外し、敵ドロップの掃除を維持する実装を確認。シーン再起動では消える。最終検証はホスト→参加者→ホストの往復まで成功したが、テスト内でプレイヤー位置同期を無効化した制約がある。
 
 ## 未完了・次の候補
+
+### GUARDIAN-01 守護者（2026-11-26実装・局所確認済み、ユーザー試遊良好）
+
+3択土台への「順調です」をユーザー試遊良好として受領。全項目/別PC確認済みへは広げない。続いて守護者の5m/25%・試合内保持・重複効果なし・毒へ攻撃値経由適用/反射除外・Inspector調整案をユーザーが承認。SPEC0.45に目標記録、まだ実装済みではない。現3択の未コミット差分を保持する。
+
+基礎予約：PlayerStats.cs、PlayerStats.WaveRewards.cs、WaveRewardCatalog.cs、専用WaveRewardCatalog.asset、必要な新規PlayerStats partial/効果定義cs/meta。先に公開API・発動状態/倍率の同期・取得後抽選除外案を短く報告し確定範囲を進める。既存テストIDを変更せず守護者を追加、テスト重複許可は維持。追加の基礎ファイル/共通フックが必要なら先に範囲調整。UI/HUD/シーン/Prefab/Monster/スキル/波時間/文書は基礎対象外。
+
+UI予約：WaveRewardChoiceUI.csの「全候補効果なし」固定文の変更、HUD.csの小さな守護者状態表示のみ。レベルUI/配置全面変更/カタログ/抽選・数式/シーンは対象外。まず準備しAPI実在の司令塔確認後に実装。距離と倍率の説明は基礎設定から取得、UIに固定5/25%や独自距離計算を重複実装しない。
+
+検証はコンパイル＋範囲内外/未取得/他人/重複除外/保存済み攻撃・毒/反射非影響の変更箇所を短く確認、大規模回帰/画像生成なし。実操作の距離感・攻撃力表示・3択から取得はユーザーに依頼。完了時はファイル/調整先/確認/未確認/予約返却を短く報告、コミットpushなし。基礎実装/UI準備の指示とも送信成功。契約報告を待つ。
+
+
+### WAVE-CHOICE-01 個人3択の土台（2026-11-26実装・局所確認済み、ユーザー試遊待ち）
+
+ユーザーは守護者の効果より先にウェーブ終了3択の土台を優先し、6項目ルールを承認。SPEC0.43参照。非最終戦闘終了→各人3択/全体停止→全員完了で回収開始。効果なし候補3つ、Inspectorの候補有効/ID/名前/説明/重み、個人試合内保持・再戦リセット、他波で同じ候補可。守護者実装は後続。候補3つでは毎回全て出る点を説明済み。
+
+着手前git statusはクリーン。基礎/UIの状態notLoadedで前回作業は完了。基礎予約：WaveManager.cs、TeamProgression.cs、PlayerStats.cs/PlayerStats.Progression.cs、ProgressionState.cs（停止整合が必要な部分だけ）、PlayerEquipment.cs/CreatorMode.csの共通操作禁止判定が必要な箇所、新規ウェーブ報酬カタログ/状態/PlayerStats partial/管理用csとmeta、Resources/Progressionの専用カタログasset/meta。既存の停止消費側を広範囲に変える前に範囲を報告する。シーン/Prefab/UI/敵/戦闘/武器/移動/共通文書は今回対象外。最初にAPIと停止/選択重複/途中参加等の案を短く報告し確定範囲から進める。
+
+UI予約：新規WaveRewardChoiceUI.cs/meta（名称は基礎契約照合後確定）、必要ならLevelUpChoiceUI.csの同時表示/優先制御だけ。HUD/CreatorModeUI/基礎コード/カタログ/シーン等は対象外。初回は表示準備、API実ファイルの司令塔確認まで編集待ち。同名仮契約は作らない。取得結果を確認する最小限の画面内表示を含め、効果なし試験であることを明記する。
+
+検証はコンパイル＋短い選択/停止復帰/個人保存/二重拒否の統合確認、抽選重み/無効/重複なしの局所確認に限定。画像生成/大規模乱数統計/全回帰/長大なテスト追加なし。ユーザーが波終了で表示・待機・選択・回収開始とInspector調整を試す。完了時はファイル/調整方法/確認/未確認/予約返却を短く報告。コミットpushは別指示までしない。基礎への実装依頼・UIへの準備依頼とも送信成功。契約報告を待つ。
+
 
 ### 次回の着手：守護者（2026-11-25ユーザー指定）
 
@@ -412,3 +434,58 @@ Logs/suicide-integration.log:816のSUICIDE GOBLIN LOCAL INTEGRATION PASSEDと担
 ### 自爆ゴブリン 色・第2波出現の完了照合
 
 今回の2ファイル予約を解除。専用assetはtint(1,0.45,0,1)/firstWave2/spawnWeight1、シーンmonsterTypes末尾へGUID aa07528d485a40647a39c3873ba38860参照を追加。司令塔が保存値/GUIDを照合。担当は既存抽選の波条件と同期tint/MPB復元を静的確認、Unity実行・新規試験なし。第1では出ず第2以降1/7の設定、総数40/間隔等は維持。実画面のオレンジと赤の区別・第2波出現はユーザー試遊待ち。過去節の『通常ウェーブ未登録』は変更前の状態。コミットpushなし。
+
+
+### WAVE-CHOICE 契約・境界の司令塔調整
+
+基礎案を実装範囲内の調整として了承。TeamProgressionでLevelUp/WaveReward停止を合算し既存IsTeamLevelUpPausedは操作停止互換名へ拡張、明示IsGamePaused/IsLevelUpChoicePaused/IsWaveRewardChoicePausedを追加。既存LevelUIは真のレベル選択フラグで表示、全員レベル完了後に報酬表示。全員報酬完了後にCollect60秒を設定。既存時計/TimeScale/停止消費側を共用する。
+
+予定API：CurrentWaveRewardOffer(Ticket/Wave/First〜Third ID/GetChoice/IsValid)、RewardCatalog(options enabled/id/displayName/description/weight、Find/Draw)、Owner用WaveRewardResults(DefinitionId/Wave/Ticketを取得順・重複可で保持)、ChooseWaveReward(ticket,index)。実ファイル化/照合までUI編集は待機。UI完成後に基礎がPlayerStatsへOwner UI自動追加する段取り。
+
+境界の初期実装判断：切断者を待ちから除外、選択中の途中参加者はその波の提示を独立取得、終了後参加へ過去波の遡及なし。死亡中も選択可。候補不足は有効1/2件表示、0件は警告してスキップ。無効/重複ID/非正有限weightを除外。Owner読取NetworkListは新試合PlayerObjectでリセット。UIの取得名/重複回数の簡潔な表示案も了承し、非表示切替で入力ゲートをリセット。大規模追加試験なし。
+
+
+### WAVE-CHOICE UI実装へ接続
+
+司令塔でWaveRewardState/PlayerStats.WaveRewards/WaveRewardCatalogと明示停止APIの実在を照合。UIへ新規WaveRewardChoiceUI/metaとLevelUpChoiceUI条件変更を実装依頼送信済み。基礎コンパイルはこの時点で確認中。カタログはAssets/Resources/Progression/WaveRewardCatalog.asset、テストA/B/C weight1。UI型完成後に基礎がOwner自動追加し、統合確認後ユーザー試遊へ返す。
+
+### WAVE-CHOICE基礎完了照合（2026-11-26）
+
+基礎変更はWaveManager/TeamProgression/PlayerStats/PlayerStats.Progression/ProgressionState/CreatorModeと新規WaveRewardCatalog/State/PlayerStats.WaveRewards各cs/meta、専用カタログasset/meta。PlayerEquipmentは未変更。Owner UI自動追加済み。今回基礎予約を解除。UI2ソース/新metaと文書差分を保持、コミットpushなし。
+
+司令塔でコードとLogs/wave-choice-integrated-ui.log:914のWAVE CHOICE CATALOG AND LOCAL INTEGRATION PASSEDを照合。担当のUnity6000.0.46f1完成UI込みコンパイルと同プロセスHost+Clientの短い28局所確認は成功。非最終波提示/最終なし・個人保存/待機・重複拒否・途中参加/切断・死亡・両停止理由/レベル優先・回収60秒・新Host試合の結果リセット等。初回試験側非Owner呼出しを修正し同一本を再実行。時計はサーバー期限を短縮して促進し、通常120秒の実試遊や実R再戦は未確認。全員0候補遷移と実移動/戦闘/拾得の停止はコード照合まで。実画面/クリック/Inspector操作性/別PC/Relay/配布Buildは未確認。UI担当の表示確認は別途受領待ち。追加大規模試験なし、司令塔再実行なし。
+
+調整asset：Assets/Resources/Progression/WaveRewardCatalog.asset、optionsのenabled/id/displayName/description/weight。IDは後で変更/再利用しない。初期候補A/B/Cは効果なし各weight1。3から3では順序のみ、4以上で選出頻度も変化。停止中はCombat/時計0のまま待ち、全選択後Collect60秒と敵の報酬なし消去を1回行う。既存IsTeamLevelUpPaused/IsLevelUpPausedは総合停止互換名に拡張済み、明示APIで画面を分離する。
+
+### WAVE-CHOICE UI完了照合と試遊への引渡し
+
+UI担当が新WaveRewardChoiceUI.cs/metaとLevelUpChoiceUI条件2行を変更し予約返却。基礎側Owner自動追加も実在を照合。Logs/CodexWaveRewardUIVerified2.log:330のWAVE REWARD UI INPUT GATE RESULT TEXT AND VALID CHOICE COUNT PASSED checks=14を確認。コンパイル/合成offer履歴・Reflectionのゲート/結果文字列/有効数確認で、実OnGUI/クリック/読みやすさ/通信ではない。両担当予約を解除しSPEC0.44へ現行API/境界/制約を反映、追加試験なし。ユーザーへ波1終了で3択/効果なし表示、選択後回収開始、2人の待機とInspector候補調整の試遊を依頼。コミットpushなし。
+
+
+### GUARDIAN公開契約案の調整
+
+Host管理のGuardianStateをOwnerへ同期し、攻撃計算時はHost再評価/画面は同期値参照。AttackPowerへ倍率1回を掛け既存保存攻撃/毒へ通し、反射は変更しない。新効果None/Guardian・allowRepeat・距離/増加率をカタログへ持たせ、新安定ID1001/weight1、既存テストID維持。提示時のID/効果/重複設定/数値をsnapshotし取得値は試合内保持、Inspector変更は次提示から適用する基礎案を司令塔が了承。取得済み同効果別IDも抽選/RPCで除外する。
+
+公開予定HasGuardian/IsGuardianActive/GuardianAttackMultiplier/GuardianDescription、option.HasEffect/catalog.GetDescription。UIは小さな状態1行と混在候補案内、固定効果なしfallbackを修正。死亡/砦消滅の待機を距離外と区別できる状態enum/文字列を基礎へ依頼し、不要な毎フレーム距離送信は避ける。実API利用可能を待ってUI開始を依頼する。
+
+
+### GUARDIAN UI接続
+
+基礎の実API HasGuardian/IsGuardianActive/GuardianAttackMultiplier/GuardianDescription/GuardianStatus(Unowned/Active/OutOfRange/Unavailable)とGetWaveRewardDescription(id)を司令塔で実ファイル照合。提示説明はticket付き効果snapshotを参照し未同期は同期中、取得説明は取得時値。UIへHUD状態1行と報酬画面混在説明の実装を依頼送信済み。基礎コンパイル/効果確認はこの時点で進行中。
+
+### GUARDIAN-01完了照合
+
+基礎変更はPlayerStats.cs/PlayerStats.WaveRewards.cs/WaveRewardCatalog.cs/カタログasset、新規PlayerStats.Guardian.cs/meta・WaveRewardEffect.cs/meta。UI変更はHUD.cs/WaveRewardChoiceUI.csだけ。両担当の今回予約を解除、既存WAVE-CHOICE差分を保持。SPEC0.46へ現行仕様反映、コミットpushなし。
+
+guardian-local-check.log:967のGUARDIAN SNAPSHOT DAMAGE OWNER AND CATALOG LOCAL CHECK PASSED（30局所確認）、CodexGuardianUIVerified.txtのGUARDIAN UI STATUS AND SNAPSHOT DESCRIPTION PASSED checks=6を司令塔で照合。詳細と制約はSPEC末尾。Host+ClientのAPI/合成状態の最小確認で、実画面/クリック/距離感/別PC/Relay/配布Buildは未確認。攻撃例は素手12→15、倍率1.5の剣本18→22.5、盾2.4→3。毒は強化済み保存基準、反射はraw基準のまま。取得snapshotとInspector変更の整合確認あり。追加試験なし、司令塔再実行なし。
+
+ユーザー試遊：第1波後に守護者を選び、第2波で砦の近く/遠くの状態と左右攻撃力の変化を確認。守護者が候補に出ない場合は再試合または再生前に他テスト候補のenabledを切ると1候補提示で取得を試せる。調整はカタログID1001のguardianOutsideDistance/guardianAttackBonus、ID変更不可。取得後の設定変更は次の提示から反映。実プレイ確認後に効果の強さ/範囲を判断する。
+
+### GUARDIAN-01 ユーザー試遊受入（2026-11-26）
+
+守護者取得・砦近くで発動/攻撃力上昇・離れて範囲外/攻撃力復帰の確認依頼に対し、ユーザーから『問題なかった』と報告。今回の実操作は問題報告なしとして受入。各項目の個別ログや通信環境は未共有であり、別PC/Relay等の確認済みへ広げない。追加自動試験なし。コミットpushは別途指示待ち。
+
+
+### 2026-11-26 保存対象
+
+ユーザーのコミット・push指示を受領。今回の対象はウェーブ終了個人3択・Inspector調整カタログ・守護者の効果/表示と共有文書。両担当の予約は返却済み、ユーザー試遊は順調/問題報告なし。以前の未コミット/試遊待ちは各報告時点の状態で、最新受入を優先する。別PC/Relay/配布Build等の未確認は維持。追加自動テストなし。

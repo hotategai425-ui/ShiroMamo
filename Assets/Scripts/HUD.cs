@@ -26,7 +26,7 @@ public class HUD : MonoBehaviour
     private ItemInstance[] inventoryItems;
     private PlayerEquipment inventoryOwner;
     private GameObject battleRoot;
-    private TMP_Text leftLabel, rightLabel, hint, crosshair;
+    private TMP_Text leftLabel, rightLabel, hint, crosshair, guardianLabel;
     private RectTransform playerBar, fortressBar;
     private Font japaneseFont;
     private TMP_FontAsset japaneseTmpFont;
@@ -54,6 +54,11 @@ public class HUD : MonoBehaviour
         bool visible = p != null && wm != null && wm.Phase != GamePhase.Lobby;
         if (battleRoot) battleRoot.SetActive(visible);
         if (!visible) return;
+        if (guardianLabel)
+        {
+            guardianLabel.text = GuardianStatusLabel(p.GuardianStatus);
+            guardianLabel.enabled = p.HasGuardian;
+        }
         if (crosshair) crosshair.enabled = !p.IsDead && !p.Equipment.IsInventoryOpen &&
             (wm.Phase == GamePhase.Combat || wm.Phase == GamePhase.Collect);
 
@@ -428,6 +433,7 @@ public class HUD : MonoBehaviour
         rightLabel = NewText("Right Weapon");
         hint = NewText("Inventory Hint");
         crosshair = NewText("Crosshair");
+        guardianLabel = NewText("Guardian Status");
         Place(waveText, .5f, 1, 0, -24, 600, 40, 28, TextAlignmentOptions.Center);
         Place(fortressText, .5f, 1, 0, -72, 600, 40, 26, TextAlignmentOptions.Center);
         // 日本語フォントの行高を確保。旧44pxでは行全体が省略される場合がある。
@@ -439,6 +445,7 @@ public class HUD : MonoBehaviour
         timerText.gameObject.SetActive(true);
         Place(teamText, 0, 1, 32, -24, 480, 96, 24, TextAlignmentOptions.TopLeft);
         Place(playerText, 0, 0, 32, 144, 720, 200, 26, TextAlignmentOptions.TopLeft);
+        Place(guardianLabel, 0, 0, 32, 150, 600, 40, 24, TextAlignmentOptions.TopLeft);
         Place(leftLabel, 0, 0, 32, 24, 620, 100, 26, TextAlignmentOptions.TopLeft);
         Place(rightLabel, .5f, 0, 0, 24, 620, 100, 26, TextAlignmentOptions.TopLeft);
         Place(hint, 1, 0, -32, 24, 280, 44, 24, TextAlignmentOptions.Right);
@@ -449,6 +456,17 @@ public class HUD : MonoBehaviour
         playerBar = MakeBar("Player HP", new Vector2(0, 0), new Vector2(32, 288), 400);
         fortressBar = MakeBar("Fortress HP", new Vector2(.5f, 1), new Vector2(0, -124), 480);
         battleRoot.SetActive(false);
+    }
+
+    private static string GuardianStatusLabel(GuardianActivationStatus status)
+    {
+        switch (status)
+        {
+            case GuardianActivationStatus.Unowned: return "";
+            case GuardianActivationStatus.Active: return "守護者：発動中";
+            case GuardianActivationStatus.OutOfRange: return "守護者：範囲外";
+            default: return "守護者：待機中";
+        }
     }
 
     private TMP_Text NewText(string label)

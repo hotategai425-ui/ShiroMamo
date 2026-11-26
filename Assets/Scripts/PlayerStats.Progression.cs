@@ -12,7 +12,12 @@ public partial class PlayerStats
     private readonly Queue<int> queuedLevels = new();
     private ulong nextOfferTicket;
 
-    public bool IsTeamLevelUpPaused => teamProgression.Value.Paused;
+    // Compatibility for existing combat/equipment consumers: any shared choice blocks gameplay.
+    public bool IsTeamLevelUpPaused => IsGamePaused;
+    public bool IsGamePaused => teamProgression.Value.Paused;
+    public TeamPauseReason PauseReasons => teamProgression.Value.PauseReasons;
+    public bool IsLevelUpChoicePaused => (PauseReasons & TeamPauseReason.LevelUp) != 0;
+    public bool IsWaveRewardChoicePaused => !IsLevelUpChoicePaused && (PauseReasons & TeamPauseReason.WaveReward) != 0;
     public LevelUpOffer CurrentLevelUpOffer => levelUpOffer.Value;
     public int PendingLevelUps => levelUpOffer.Value.PendingCount;
     public PlayerUpgradeBonuses UpgradeBonuses => upgradeBonuses.Value;

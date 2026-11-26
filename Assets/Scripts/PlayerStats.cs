@@ -71,7 +71,8 @@ public partial class PlayerStats : NetworkBehaviour
     public float BlinkDuration => Mathf.Max(0.02f, blinkDuration);
     public float BlinkCooldown => Mathf.Max(0f, blinkCooldown);
 
-    public float AttackPower => baseAttack + attackPerLevel * (Level - 1) + upgradeBonuses.Value.Attack;
+    public float BaseAttackPower => baseAttack + attackPerLevel * (Level - 1) + upgradeBonuses.Value.Attack;
+    public float AttackPower => BaseAttackPower * GuardianAttackMultiplier;
     public float GetAttack(bool leftHand) => AttackPower * equipment.GetWeaponAttackMultiplier(leftHand);
 
     public float GetAttackDamage(bool leftHand) => RollAttackDamage(leftHand).Amount;
@@ -99,6 +100,7 @@ public partial class PlayerStats : NetworkBehaviour
     private void Awake()
     {
         equipment = GetComponent<PlayerEquipment>();
+        waveRewardResults = new NetworkList<WaveRewardResult>(null, NetworkVariableReadPermission.Owner);
     }
 
     public override void OnNetworkSpawn()
@@ -118,6 +120,7 @@ public partial class PlayerStats : NetworkBehaviour
             Time.timeScale = IsTeamLevelUpPaused ? 0f : 1f;
             StartCoroutine(PlaceAtSpawn());
             if (GetComponent<LevelUpChoiceUI>() == null) gameObject.AddComponent<LevelUpChoiceUI>();
+            if (GetComponent<WaveRewardChoiceUI>() == null) gameObject.AddComponent<WaveRewardChoiceUI>();
             if (IsHost && CreatorMode.SupportedBuild)
             {
                 var creator = GetComponent<CreatorMode>();
@@ -220,7 +223,7 @@ public partial class PlayerStats : NetworkBehaviour
 
     public bool TrySetCreatorLevel(int requestedLevel)
     {
-        if (!IsServer || !CreatorMode.CanEdit(this) || IsDead || requestedLevel < 1) return false;
+        if (!IsServer || !CreatorMode.CanEdit(this) || IsDead || IsGamePaused || requestedLevel < 1) return false;
         // 現行の経験値計算がオーバーフローする値は受け付けない。
         float nextExp = RequiredExperience(requestedLevel);
         if (!(nextExp > 0f) || float.IsInfinity(nextExp)) return false;

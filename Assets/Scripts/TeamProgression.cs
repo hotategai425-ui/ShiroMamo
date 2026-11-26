@@ -9,6 +9,8 @@ public sealed class TeamProgression
     private readonly NetworkManager network;
     private readonly List<PlayerStats> players = new();
     private TeamProgressionState state = new TeamProgressionState { Level = 1 };
+    private int rewardWave;
+    private bool rewardRoundActive;
 
     private TeamProgression(NetworkManager manager) { network = manager; }
 
@@ -31,6 +33,7 @@ public sealed class TeamProgression
         if (players.Contains(player)) return;
         players.Add(player);
         for (int level = 2; level <= state.Level; level++) player.QueueLevelUp(level);
+        if (rewardRoundActive) player.IssueWaveReward(rewardWave);
         Publish(false);
     }
 
@@ -76,11 +79,30 @@ public sealed class TeamProgression
 
     internal void ChoiceCompleted() => Publish(false);
 
+    internal void BeginWaveRewards(int completedWave)
+    {
+        if (completedWave <= rewardWave) return;
+        rewardWave = completedWave;
+        rewardRoundActive = true;
+        foreach (var player in players)
+            if (player != null && player.IsSpawned) player.IssueWaveReward(completedWave);
+        Publish(false);
+    }
+
     private void Publish(bool heal)
     {
-        state.Paused = players.Exists(player => player != null && player.PendingLevelUps > 0);
+        bool levels = players.Exists(player => player != null && player.PendingLevelUps > 0);
+        bool rewards = players.Exists(player => player != null && player.CurrentWaveRewardOffer.IsValid);
+        state.PauseReasons = (levels ? TeamPauseReason.LevelUp : TeamPauseReason.None)
+            | (rewards ? TeamPauseReason.WaveReward : TeamPauseReason.None);
+        state.Paused = levels || rewards;
+        if (!state.Paused) rewardRoundActive = false;
         foreach (var wave in Object.FindObjectsByType<WaveManager>(FindObjectsSortMode.None))
-            if (wave.IsSpawned && wave.IsServer && wave.NetworkManager == network) wave.SetLevelUpPaused(state.Paused);
+            if (wave.IsSpawned && wave.IsServer && wave.NetworkManager == network)
+            {
+                wave.SetLevelUpPaused(state.Paused);
+                if (!state.Paused) wave.CompleteWaveRewardSelection();
+            }
         foreach (var player in players)
             if (player != null && player.IsSpawned) player.SyncTeamProgression(state, heal);
     }

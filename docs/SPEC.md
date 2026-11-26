@@ -1,6 +1,6 @@
 # ShiroMamo 現行技術仕様
 
-更新日 2026-11-25 / 版 0.42
+更新日 2026-11-26 / 版 0.46
 
 EQUIP-02は基礎とUIの実装・隔離検証が完了。本人攻撃力×武器倍率、盾の常時軽減、盾バッシュを現行仕様とする。実画面・実入力・通常移動同期込みの戦闘と受け渡し、別PC/Relay/ビルドは未確認。詳細な検証条件はHANDOFF.mdを参照する。
 
@@ -17,6 +17,24 @@ EQUIP-02は基礎とUIの実装・隔離検証が完了。本人攻撃力×武�
 開発者向けの実装・保存値・APIの参照先。読み始めは[引き継ぎ](HANDOFF.md)、遊び方とゲーム内容は[ゲーム仕様書](GAME_SPEC.md)、過去の作業と検証ログの詳細は[履歴](CHANGELOG.md)を参照する。
 
 この文書の「実装済み」はコード・シーン・アセットで存在を確認した範囲。実操作・通信での確認状況はHANDOFF.mdに記録する。数値は現在の調整値で、最終バランスを確定したものではない。変更前に対象ファイルの最新状態と照合する。
+
+## GUARDIAN-01 守護者（2026-11-26実装・局所確認済み、試遊待ち）
+
+ユーザーが司令塔の初期案を承認。ウェーブ終了報酬で守護者を取得すると、その試合中、砦の外周から水平距離5m以内で本人の攻撃力が25%上昇する。外周は既存Fortress.Radiusを基準、条件に範囲内境界を含む。左右の素手/剣/本/盾バッシュに適用し、近接は振り開始、魔法は発射時、素手は既存の命中確定時に値を保存。範囲外への移動やHP等で既存弾/振りを再計算しない。毒は強化された攻撃を基準にするが、反射は強化しない。
+
+取得は個人別・試合内保持し再戦リセット。同じ守護者の重複取得による効果加算はしない。取得後は本人の抽選候補から守護者を除外し、残候補が1/2件なら既存の不足提示で対応する。テスト候補の重複取得許可は維持。既存テストID1/2/3を守護者に再割当せず、新しい安定IDで実効果候補を追加する。カタログの重み調整と独立成長/停止/選択検証を維持する。
+
+効果距離と上昇率はInspectorで調整可（初期5m/0.25）。ダメージの権威はHost。Ownerの攻撃力表示と実倍率が矛盾しない同期/公開APIを基礎担当が提示し実ファイル化。最小限の発動中/範囲外表示をUIへ追加する。具体APIは未確定。砦や本人が死亡/消滅時の安全な解除と未取得者無効を確認する。その他候補・ダメージ/敵数等のバランスは変更しない。
+
+## WAVE-CHOICE-01 ウェーブ終了時の個人3択（実装・局所確認済み、試遊待ち）
+
+2026-11-26ユーザーが次の初期ルールを承認。最終以外の戦闘終了直後、回収が進む前に各プレイヤーが独立したランダム3択から1つ選択。全員完了までゲームと時計を停止し、完了後に回収時間を開始する。第3波など最終戦闘後は選択しない。初期候補は効果なしのテスト3種類。選択結果は個人別に試合内保持し再戦でリセット、別ウェーブで同候補の再提示/重複取得を許可。守護者等の効果は今回未実装。
+
+専用カタログをInspectorで編集し、有効/無効・安定ID・名前・説明・相対抽選重みを持つ。同一提示内は重複なし。候補追加/重み変更で調整でき、既存LevelUpCatalog/UpgradeStatや武器スキルへ混ぜない。3候補から異なる3択では全候補が出るため重みは並び順に影響、4候補以上なら提示されやすさにも影響することを説明する。候補不足/無効設定はフリーズを避け、有効数に応じた安全な提示/スキップ等の案を基礎が報告する。
+
+Hostが一度だけウェーブ報酬を発行し、Owner限定提示・ticket/index照合・二重/旧要求拒否で個人取得へ記録。レベルアップと同時でも片方完了で勝手に再開しないよう停止理由を集約し、画面の優先順位とカーソル/操作禁止を整合する。既存の経験値/レベル選択/武器/波数/敵/時間数値は変更しない。選択中の切断/途中参加/死亡・最終波・再戦の境界処理は基礎が案を報告し、ユーザー判断が必要な大きな仕様は確定前に実装しない。
+
+UIは独立WaveRewardChoiceUI（仮名）にし、既存の日本語/3ボタン/相棒待ち/誤入力0.35秒連続解放と新規押下の挙動を再利用する。既存LevelUpChoiceUIの同時表示制御だけを必要に応じ変更。基礎がデータ/APIを実ファイル化して司令塔が照合してからUIを実装する。具体APIは未確定。
 
 ## 自爆ゴブリン本体と準備演出（2026-11-25実装・局所統合確認済み）
 
@@ -481,3 +499,16 @@ F2制作者モードの「自爆ゴブリンを1体生成（戦闘中・砦の�
 
 検証：担当のUnity6000.0.46f1隔離コンパイルと短いHost+Client統合20局所確認、Logs/suicide-integration.log:816のSUICIDE GOBLIN LOCAL INTEGRATION PASSEDを司令塔で照合。砦優先/3秒/ノックバック継続/停止復帰/途中参加snapshot/一回爆発/壁遮蔽/各20/自爆EXPなし/致死EXPと通常Goblin維持を確認した報告。移動/NetworkTransform停止・Client敵Collider無効化・Host WaveManager指定の制約。毒はPoison致死入口で自然周期ではない。盾装備軽減/反射除外と装備ドロップ抽選はコード/保存値照合、実装備/抽選試験なし。赤点滅/材質復元・同期の実見た目、実クリック/製品シーン試遊・別PC/Relayは未確認。追加試験・司令塔Unity再実行なし。
 自爆型の通常色はオレンジ(1,0.45,0,1)、準備中赤点滅。firstWave2/spawnWeight1とgameplay参照を静的照合済み。敵の総数/間隔/能力と爆発条件は維持。色の視認性・第2波出現の実操作は再試遊待ち。
+
+WAVE-CHOICE-01現行API：TeamPauseReason(LevelUp/WaveReward)をTeamProgressionが合算。PlayerStats.IsGamePaused/PauseReasons/IsLevelUpChoicePaused/IsWaveRewardChoicePausedで表示を分離し、旧IsTeamLevelUpPausedおよびWaveManager.IsLevelUpPausedは総合停止の互換名。非最終戦闘時計0で停止→全選択終了後にCollect60秒開始・敵報酬なし消去。レベルアップを優先する。
+
+CurrentWaveRewardOffer(Ticket/Wave/First/Second/Third ID/GetChoice/IsValid)、RewardCatalog.Find、Owner読取WaveRewardResults(DefinitionId/Wave/Ticketを順序保存)、ChooseWaveReward(ticket,index)を公開。Owner限定RPCで現ticket/index・優先状態を検証。カタログはAssets/Resources/Progression/WaveRewardCatalog.assetのoptions enabled/id/displayName/description/weight、既存IDの変更/再利用はしない。有効0件は警告スキップ、1/2件はその数だけ表示。別波同ID取得可。選択中参加は現波対象、終了後参加へ過去の遡及なし、死亡中も選択可、切断者を待ちから除外。
+
+新WaveRewardChoiceUIをOwner生成時自動追加。正IDの候補と効果なし案内、全員待ちを表示し、入力0.35秒連続解放と新押下/ticket検証を使う。取得履歴は画面内で重複数を集計表示、最後の選択者の画面は直ちに閉じるため次回報酬時にも確認できる。HUD常設表示はなし。LevelUpChoiceUIは表示条件2か所だけをIsLevelUpChoicePausedへ変更。
+
+検証は担当の完成UI込みUnityコンパイル、wave-choice-integrated-ui.log:914の短いHost+Client統合/カタログ28項目とCodexWaveRewardUIVerified2.log:330のUI内部14項目の成功を司令塔で照合。UIはReflection/合成offer履歴、統合は期限短縮、再戦は新Host/PlayerObjectであり実R再読込ではない。0候補全体遷移と移動/戦闘/拾得停止はコード照合まで。実GUI/クリック/文字配置/Inspector操作性・別PC/Relay/Build未確認。全体回帰や画像生成・司令塔Unity再実行なし。守護者等の効果はまだ未実装。
+GUARDIAN-01現行契約：BaseAttackPowerを分離しAttackPowerへGuardianAttackMultiplierを1回適用。同Managerの生存砦をHostで照合し、水平中心距離<=Fortress.Radius+取得時OutsideDistance。新PlayerStats.Guardian.cs/効果定義がOwner読取GuardianEffectStateを保持し、HasGuardian/GuardianStatus(Unowned/Active/OutOfRange/Unavailable)/IsGuardianActive/GuardianAttackMultiplier/GuardianDescriptionを公開。攻撃計算時もHost再評価、Ownerは同期状態を参照し距離独自計算なし。状態/パラメータ変化だけ同期。本人死亡/砦死亡消滅は無効、復活で再評価し取得は維持。
+
+設定はAssets/Resources/Progression/WaveRewardCatalog.assetの新安定ID1001。effect=Guardian、guardianOutsideDistance=5、guardianAttackBonus=0.25、weight=1。既存ID1/2/3はNone/繰返し可。提示時の効果/非重複/値をHostがticket付きsnapshot保存し選択へ適用、GetWaveRewardDescription(id)はその説明、未同期は同期中。Noneは任意説明でも効果なし（試験用）prefix。取得値は試合内保存しInspector変更は次提示から反映。取得済みGuardianの同ID/同効果別IDを抽選/RPCで除外し、取得時非重複IDは後の設定変更でも再取得解禁しない。
+
+HUDは取得済みだけ小1行で発動中/範囲外/待機中を表示。選択画面は効果あり/なしの混在案内とsnapshot説明へ変更、既存入力/履歴/配置は維持。検証：guardian-local-check.log:967のGUARDIAN SNAPSHOT DAMAGE OWNER AND CATALOG LOCAL CHECK PASSED（担当の30局所確認）とCodexGuardianUIVerifiedの6件成功を司令塔で照合。基礎+UIコンパイル、境界7.5/7.501・未取得/他人・保存値・Owner同期・抽選除外・毒の保存基準/反射非影響・死亡復活/砦消滅・新Player初期化を確認した報告。API攻撃/座標設定/合成UI状態を用い、自然毒tick/実マウス軌跡/製品R再戦を再確認したものではない。実クリック/画面/距離感/別PC/Relay/Buildは未確認。大規模回帰/画像生成/司令塔Unity再実行なし。

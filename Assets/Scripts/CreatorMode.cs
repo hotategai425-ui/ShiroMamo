@@ -48,11 +48,11 @@ public class CreatorMode : MonoBehaviour
         if (GameInput.CancelPressed) SetMenuOpen(false);
     }
 
-    public bool TrySetLevel(int level) => CanUse && Player.TrySetCreatorLevel(level);
+    public bool TrySetLevel(int level) => CanUse && !Player.IsGamePaused && Player.TrySetCreatorLevel(level);
 
     public bool TryGiveWeapon(int definitionIndex, ItemRarity? rarity = null)
     {
-        if (!CanUse || Player.IsDead || ItemDatabase.Instance == null) return false;
+        if (!CanUse || Player.IsDead || Player.IsGamePaused || ItemDatabase.Instance == null) return false;
         ItemData weapon = ItemDatabase.Get(definitionIndex);
         if (weapon == null || weapon.slot != ItemSlot.Weapon) return false;
         ItemInstance instance = rarity.HasValue
@@ -65,7 +65,7 @@ public class CreatorMode : MonoBehaviour
 
     public bool SetMonstersPaused(bool paused)
     {
-        if (!CanUse) return false;
+        if (!CanUse || Player.IsGamePaused) return false;
         MonstersPaused = paused;
         foreach (var monster in Monster.All)
             if (monster != null && monster.IsSpawned && monster.IsServer && monster.NetworkManager == Player.NetworkManager)
